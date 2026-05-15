@@ -13,7 +13,7 @@ N_ENT_C3 = 6
 N_NEU_C3 = 2
 
 #flags de "debug" = printf
-DEBUG_CAM = False
+DEBUG_CAM = True
 DEBUG_NEU = False
 
 def f_ativacao(x):
