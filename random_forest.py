@@ -27,8 +27,6 @@ RSP_BAIXA= 7 #entre 0 e 7
 RSP_OK= 15 #entre 7 e 15
 RSP_ALTA = 22 # entre 15 e 22		
 
-def esc_ind_entropia(entradas):
-
 # i_disc: 0 = qPA ; 1 = Pulso ; 2 = Respiração
 def calc_entropia(i_disc, entradas):
 
@@ -53,197 +51,129 @@ def calc_entropia(i_disc, entradas):
 
 	return entropia
 
+def calc_mnr_entropia(flags_atrib, entradas):
 
-def calc_vet_entropia(pai,n_atributos, entradas):
-	
-	e_qPA = calc_entrop_qPA(entradas)
-	e_pulso = calc_entrop_pulso(entradas)
-	e_RSP = calc_entrop_RSP(entradas)
-	
-	menosEntropico = max(e_qPA, e_pulso, e_RSP)
-	
-	if menosEntropico == e_qPA:
-		#separo em 3 grupos por q_PA
-		#confere cada subgrupo
-		#separa tudo
+	n_sub_grupos = []
+	for i in range(3):
+		if flags_atrib[i] == 1:
+			n_sub_grupos.append(discretador[i][0]) # discretador define os a quantidade e os limites de cada subgrupo
+		else:
+			n_sub_grupos.append(0)
 
-		e_baixa = []
-		e_media = []
-		e_alta = []
+	hist_labels = []
+	for i in range(3):
+		if (n_sub_grupos[i] == 0):
+			hist_labels.append([0]) #label de padding só
+		for j in range(n_sub_grupos[i]):
+			hist_labels.append([0, 0, 0, 0])
 
-		for e in entradas:
-			if (e[1] < PA_BAIXA):
-				e_baixa.append(e)
-			elif (e[1] > PA_ALTA):
-				e_alta.append(e)
-			else:
-				e_media.append(e)
-		
-		e_pulso = calc_entrop_pulso(e_baixa)
-		e_RSP = calc_entrop_RSP(e_baixa)
+	# pra cada entrada, atualiza o histograma daquela classificação na label de cada subgrupo
+	for e in entradas:
+		for i in range(3): # for dos atributos
+			aumnt = 0
+			for j in range(0, n_sub_grupos[i][0]): # for dos subgrupos de cada atributo
+				if (e[i + 1] < discretador[i][j + 1]):
+					aumnt = j # flag de qual subgrupo incrementar
+				hist_labels[aumnt][e[5] - 1] += 1 #aumenta o subgrupo na label tal
 
-		if (e_pulso > e_RSP):
+	# soma a entropia de todos os subgrupos de todos os atrubutos
+	entropias = []
+	for i in range(3): # for dos subatributos
+		for j in range(n_sub_grupos[i][0]):
+			total = 0
+			for k in range(4):
+				total += hist_labels[i][k] #total do subgrupo
+			for k in range(4):
+				prob = (hist_labels[i][k] / total) #pob de cada label
+				entropias[i] += prob * log((1/prob), 2) #entropia daquele atributo
 
-			ee_baixissima = []
-			ee_baixa = []
-			ee_media = []
-			ee_alta = []
-			ee_altissima = []
+	min = 10000000000 #infinito
+	ret = -1
+	if min > entropias[0] and flags_atrib[0] == 1:
+		min = entropias[0]
+		ret = 0
+	if min > entropias[1] and flags_atrib[1] == 1:
+		min = entropias[1]
+		ret = 1
+	if min > entropias[2] and flags_atrib[2] == 1:
+		min = entropias[2]
+		ret = 2
 
-			for e in e_baixa:
-				if (e[1] < PL_BAIXISSIMO):
-					ee_baixissima.append(e)
-				elif (e[1] > PL_BAIXO and e[1] < PL_MEDIO):
-					ee_baixa.append(e)
-				elif (e[1] > PL_MEDIO and e[1] < PL_ALTO):
-					ee_media.append(e)
-				elif (e[1] > PL_ALTO and e[1] < PL_ALTISSIMO):
-					ee_alta.append(e)
-				else:
-					ee_altissima.append(e)
+	return ret
 
-				eee_baixa = []
-				eee_media = []
-				eee_alta = []
+def separa_por_atributo(i_disc, entradas):
 
-				for e in entradas:
-					if (e[1] < RSP_BAIXA):
-						eee_baixa.append(e)
-					elif (e[1] > RSP_ALTA):
-						eee_alta.append(e)
-					else:
-						eee_media.append(e)
+	n_sub_grupos = discretador[i_disc][0]
 
-def calc_entrop_qPA(entradas):
-	baixa = 0
-	media = 0
-	alta = 0
+	# cria uma lista para cada subgrupo
+	sub_grupos = []
+	for i in range(n_sub_grupos):
+		sub_grupos.append([]) # lista vazia
 
-	labels_b = [0, 0, 0, 0]
-	labels_m = [0, 0, 0, 0]
-	labels_a = [0, 0, 0, 0]
+	# adiciona uma entrada em cada subgrupo respectivo
+	for e in entradas:
+		subg = 0
+		for j in range(0, n_sub_grupos): # for dos subgrupos de cada atributo
+			if (e[i_disc + 1] < discretador[i_disc][j + 1]):
+				subg = j # flag de qual subgrupo adicionar
+			sub_grupos[subg].append(e) 
+
+	return sub_grupos
+
+def calc_prob_labels(entradas):
+	labels = [0,0,0,0]
+	total = len(entradas)
+	if total == 0:
+		return (0, 0, 0, 0)
 
 	for e in entradas:
-		if (e[1] < PA_BAIXA):
-			labels_b[e[5] - 1] += 1
-			baixa += 1
-		elif (e[1] > PA_ALTA):
-			labels_a[e[5] - 1] += 1
-			alta += 1
-		else:
-			labels_m[e[5] - 1] += 1
-			media += 1
+		labels[e[5 - 1]] += 1
+	
+	return (labels[0] / total, labels[1] / total, labels[2] / total, labels[3] / total)
 
-	entropia = 0
+class No:
+	def __init__(self, i_sub_atr):
+		self.i_sub_atr = i_sub_atr # discretador define os a quantidade e os limites de cada subgrupo
+		self.filhos = []
+		self.prob = []
 
-	for i in range(4):
-		prob = (labels_b[i] / baixa)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_m[i] / media)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_a[i] / alta)
-		entropia += prob * log((1/prob),2)
-
-	return entropia
-
-def calc_entrop_pulso(entradas):
-	baixissima = 0
-	baixa = 0
-	media = 0
-	alta = 0
-	altissima = 0
-
-	labels_bb = [0, 0, 0, 0]
-	labels_b = [0, 0, 0, 0]
-	labels_m = [0, 0, 0, 0]
-	labels_a = [0, 0, 0, 0]
-	labels_aa = [0, 0, 0, 0]
-
-	for e in entradas:
-		if (e[1] < PL_BAIXISSIMO):
-			labels_b[e[5] - 1] += 1
-			baixissima += 1
-		elif (e[1] > PL_BAIXO and e[1] < PL_MEDIO):
-			labels_b[e[5] - 1] += 1
-			baixa += 1
-		elif (e[1] > PL_MEDIO and e[1] < PL_ALTO):
-			labels_m[e[5] - 1] += 1
-			media += 1
-		elif (e[1] > PL_ALTO and e[1] < PL_ALTISSIMO):
-			labels_a[e[5] - 1] += 1
-			alta += 1
-		else:
-			labels_aa[e[5] - 1] += 1
-			altissima += 1
-
-	entropia = 0
-
-	for i in range(4):
-		prob = (labels_bb[i] / baixissima)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_b[i] / baixa)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_m[i] / media)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_a[i] / alta)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_aa[i] / altissima)
-		entropia += prob * log((1/prob),2)
-
-	return entropia
-
-
-
-def calc_entrop_RSP(entradas):
-	baixa = 0
-	ok = 0
-	alta = 0
-
-	labels_b = [0, 0, 0, 0]
-	labels_o = [0, 0, 0, 0]
-	labels_a = [0, 0, 0, 0]
-
-	for e in entradas:
-		if (e[1] < RSP_BAIXA):
-			labels_b[e[5] - 1] += 1
-			baixa += 1
-		elif (e[1] > RSP_ALTA):
-			labels_a[e[5] - 1] += 1
-			alta += 1
-		else:
-			labels_o[e[5] - 1] += 1
-			ok += 1
-
-	entropia = 0
-
-	for i in range(4):
-		prob = (labels_b[i] / baixa)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_o[i] / ok)
-		entropia += prob * log((1/prob),2)
-
-	for i in range(4):
-		prob = (labels_a[i] / alta)
-		entropia += prob * log((1/prob),2)
-
-	return entropia
+	def add_filho(self, no):
+		self.filhos.append(no)
 
 class Arvore:
-	def __init__(self, n_atributos, n_entradas, entradas):
+	def __init__(self, n_atributos, entradas):
+
+		flags = [1, 1, 1] #todas inicialmente ativas
+
+		indx = calc_mnr_entropia(flags, entradas)
+
+		self.raiz = No(indx)
+
+		flags[indx] = 0 # abaixa a flag ja usada
+
+		sub_grupos = separa_por_atributo(indx, entradas)
+
+		for sg in sub_grupos:
+			indx = calc_mnr_entropia(flags, sg)
+			ramo = No(indx)
+			flags[indx] = 0 # abaixa a flag ja usada
+
+			ind_falta = 0 #pega o atributo que sobrou 
+			for i in range(3):
+				if flags[i] == 1:
+					ind_falta = flags[i]
+
+			flags[indx] = 1 #manter pro for
+
+			sub_sub_grupos = separa_por_atributo(indx, entradas)
+
+			# adiciona os filhos do ramo com probs calculadas
+			for ssg in sub_sub_grupos:
+				filho = No(ind_falta)
+				filho.prob = calc_prob_labels(ssg)
+				ramo.add_filho(filho)
+
+			self.raiz.add_filho(No(indx))
 
 		# escolhe uma hierarquia de atributos usando a entropia das entradas
 		# cria a arvore baseada nesta hierarquia
