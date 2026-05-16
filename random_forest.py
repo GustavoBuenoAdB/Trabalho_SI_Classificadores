@@ -1,14 +1,17 @@
-from entrada import lerLinha, lerEntradas 
+import entrada as ent
 from math import log
 
-N_ENTRADAS = 6
+N_ENTRADAS = 1500
+N_VALIDACAO = N_ENTRADAS // 5 # n sei exatamente como escolhe esse valor
 N_ARVORES = 10
+N_ENTR_P_ARV = (N_ENTRADAS) // N_ARVORES
 
+ARQUIVO = 'data/02_treino_sinais_vitais_com_label.txt'
 
 #Discretando entradas
 # - qPA
 
-discretador = [[3, -4, 0, 4], [5, 20, 80, 140, 200], [3, 7, 15, 22]]
+discretador = [[3, -4, 0, 4], [5, 20, 80, 140, 160, 200], [3, 7, 15, 22]]
 
 
 PA_BAIXA = -4 # entre -10 e -4
@@ -62,30 +65,34 @@ def calc_mnr_entropia(flags_atrib, entradas):
 
 	hist_labels = []
 	for i in range(3):
-		if (n_sub_grupos[i] == 0):
-			hist_labels.append([0]) #label de padding só
+
+		grupos = []
+
 		for j in range(n_sub_grupos[i]):
-			hist_labels.append([0, 0, 0, 0])
+			grupos.append([0,0,0,0])
+
+		hist_labels.append(grupos)
 
 	# pra cada entrada, atualiza o histograma daquela classificação na label de cada subgrupo
 	for e in entradas:
 		for i in range(3): # for dos atributos
 			aumnt = 0
-			for j in range(0, n_sub_grupos[i][0]): # for dos subgrupos de cada atributo
+			for j in range(0, n_sub_grupos[i]): # for dos subgrupos de cada atributo
 				if (e[i + 1] < discretador[i][j + 1]):
 					aumnt = j # flag de qual subgrupo incrementar
-				hist_labels[aumnt][e[5] - 1] += 1 #aumenta o subgrupo na label tal
+				hist_labels[i][aumnt][e[5] - 1] += 1 #aumenta o subgrupo na label tal
 
 	# soma a entropia de todos os subgrupos de todos os atrubutos
-	entropias = []
+	entropias = [0, 0, 0]
 	for i in range(3): # for dos subatributos
-		for j in range(n_sub_grupos[i][0]):
+		for j in range(n_sub_grupos[i]):
 			total = 0
 			for k in range(4):
-				total += hist_labels[i][k] #total do subgrupo
+				total += hist_labels[i][j][k] #total do subgrupo
 			for k in range(4):
-				prob = (hist_labels[i][k] / total) #pob de cada label
-				entropias[i] += prob * log((1/prob), 2) #entropia daquele atributo
+				if (hist_labels[i][j][k] > 0):
+					prob = (hist_labels[i][j][k] / total) #pob de cada label
+					entropias[i] += prob * log((1/prob), 2) #entropia daquele atributo
 
 	min = 10000000000 #infinito
 	ret = -1
@@ -127,7 +134,7 @@ def calc_prob_labels(entradas):
 		return (0, 0, 0, 0)
 
 	for e in entradas:
-		labels[e[5 - 1]] += 1
+		labels[e[5] - 1] += 1
 	
 	return (labels[0] / total, labels[1] / total, labels[2] / total, labels[3] / total)
 
@@ -161,37 +168,86 @@ class Arvore:
 			ind_falta = 0 #pega o atributo que sobrou 
 			for i in range(3):
 				if flags[i] == 1:
-					ind_falta = flags[i]
+					ind_falta = i
 
 			flags[indx] = 1 #manter pro for
 
-			sub_sub_grupos = separa_por_atributo(indx, entradas)
+			sub_sub_grupos = separa_por_atributo(indx, sg)
 
 			# adiciona os filhos do ramo com probs calculadas
 			for ssg in sub_sub_grupos:
 				filho = No(ind_falta)
-				filho.prob = calc_prob_labels(ssg)
+				
+				folhas_grupos = separa_por_atributo(ind_falta, ssg)
+
+				for fg in folhas_grupos:
+					folha = No(-1) #indice de atributo invalido
+					folha.prob = calc_prob_labels(fg)
+					filho.add_filho(folha)
+
 				ramo.add_filho(filho)
 
-			self.raiz.add_filho(No(indx))
+			self.raiz.add_filho(ramo)
 
 		# escolhe uma hierarquia de atributos usando a entropia das entradas
 		# cria a arvore baseada nesta hierarquia
 
 	def processa(self, entrada):
 		# só descer raiz abaixo e ver se resulta em True ou False e retorna esse voto.
+		no_at = self.raiz
+		
+		for i in range(3): #toda arvore tem altura 3
+
+			atributo = no_at.i_sub_atr
+			valor = entrada[atributo + 1]
+
+			n_filhos = discretador[atributo][0]
+			filho = 0
+			for j in range(0, n_filhos): # for dos filhos
+				if (valor < discretador[atributo][j + 1]):
+					filho = j # flag de qual filho seguir
+			no_at = no_at.filhos[filho] 
+
+		return no_at.prob #retorna a lista de probs / o voto deste classificador
+
+		
 
 class Floresta:
 	def __init__(self):
 		self.arvores = []
 		# cria uma penca de arvores, (N_ARVORES)
+		file = open(ARQUIVO,'r',encoding='UTF-8')
+		for i in range(N_ARVORES):
+			entradas = ent.lerEntradas(file, (N_ENTR_P_ARV * i), N_ENTR_P_ARV)
+			self.arvores.append(Arvore(3, entradas))
+		file.close()
 	
 	def processa(self, entrada):
 		# manda cada arvore processar aquela entrada
 		# contabiliza os votos e retorna
+		resultado = [0.0, 0.0, 0.0, 0.0]
+
+		for a in self.arvores:
+
+			prob = a.processa(entrada)
+
+			for i in range(4):
+				resultado[i] += prob[i]
+
+		for i in range(4):
+			resultado[i] /= N_ARVORES
+
+		return resultado
 
 def main():
 	# cria uma floresta, manda processar entradas 
+	flor = Floresta()
+
+	file = open(ARQUIVO,'r',encoding='UTF-8')
+	print(flor.processa(ent.lerLinha(file, 1, 3)))
+
+	file.close()
+
 	return 0
 
 
