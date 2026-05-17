@@ -13,8 +13,8 @@ N_ENT_C3 = 6
 N_NEU_C3 = 2
 
 #flags de "debug" = printf
-DEBUG_CAM = True
-DEBUG_NEU = False
+DEBUG_CAM = False
+DEBUG_NEU = True
 
 def f_ativacao(x):
 	return expit(x)
@@ -23,17 +23,19 @@ class Neuronio:
 	def __init__(self, n_entradas):
 		self.n_entradas = n_entradas
 		self.pesos = []
+		self.vies = random.random()
 		# inicializa os pesos aleatoriamente
-		for i in range (n_entradas):
+		for i in range (n_entradas + 1):
 			self.pesos.append(random.random())
 
 
 	def processa(self, entradas):
 		som = 0
 		n = len(entradas)
-		for i in range(n):
-			som += entradas[i] * self.pesos[i]
-		
+		for i in range(1, n + 1):
+			som += entradas[i-1] * self.pesos[i]		
+		som -= self.pesos[0] # esse aqui é o vies (indice 0 do vetor de pesos)
+
 		if (DEBUG_NEU):
 			print(f" - entrada: {entradas} \n - pesos: {self.pesos} \n - soma: {som}")
 

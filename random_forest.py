@@ -1,9 +1,9 @@
 import entrada as ent
 from math import log
 
-N_ENTRADAS = 1500
+N_ENTRADAS = 1200
 N_VALIDACAO = N_ENTRADAS // 5 # n sei exatamente como escolhe esse valor
-N_ARVORES = 10
+N_ARVORES = 50
 N_ENTR_P_ARV = (N_ENTRADAS) // N_ARVORES
 
 ARQUIVO = 'data/02_treino_sinais_vitais_com_label.txt'
@@ -82,9 +82,9 @@ def calc_mnr_entropia(flags_atrib, entradas):
 					aumnt = j # flag de qual subgrupo incrementar
 				hist_labels[i][aumnt][e[5] - 1] += 1 #aumenta o subgrupo na label tal
 
-	# soma a entropia de todos os subgrupos de todos os atrubutos
+	# soma a entropia de todos os subgrupos de todos os atributos
 	entropias = [0, 0, 0]
-	for i in range(3): # for dos subatributos
+	for i in range(3): # for dos atributos
 		for j in range(n_sub_grupos[i]):
 			total = 0
 			for k in range(4):
@@ -117,13 +117,14 @@ def separa_por_atributo(i_disc, entradas):
 	for i in range(n_sub_grupos):
 		sub_grupos.append([]) # lista vazia
 
+	#discretador = [[3, -4, 0, 4], [5, 20, 80, 140, 160, 200], [3, 7, 15, 22]]
 	# adiciona uma entrada em cada subgrupo respectivo
 	for e in entradas:
 		subg = 0
 		for j in range(0, n_sub_grupos): # for dos subgrupos de cada atributo
-			if (e[i_disc + 1] < discretador[i_disc][j + 1]):
+			if (e[i_disc + 1] < discretador[i_disc][j + 1]): #i_disc + 1 para ignorar o id
 				subg = j # flag de qual subgrupo adicionar
-			sub_grupos[subg].append(e) 
+		sub_grupos[subg].append(e) 
 
 	return sub_grupos
 
@@ -230,9 +231,10 @@ class Floresta:
 		for a in self.arvores:
 
 			prob = a.processa(entrada)
-
+			#print(f"aqui é a prob: {round(prob[0],2)},{round(prob[1],2)},{round(prob[2],2)},{round(prob[3],2)} da arvore")
 			for i in range(4):
 				resultado[i] += prob[i]
+
 
 		for i in range(4):
 			resultado[i] /= N_ARVORES
@@ -244,7 +246,9 @@ def main():
 	flor = Floresta()
 
 	file = open(ARQUIVO,'r',encoding='UTF-8')
-	print(flor.processa(ent.lerLinha(file, 1, 3)))
+	linhas = ent.lerEntradas(file, N_ENTRADAS, 1500-N_ENTRADAS)
+	for l in linhas:
+		print(f"alvo: {l[5]} prob:{(flor.processa(l))[l[5]-1]}")
 
 	file.close()
 
