@@ -49,7 +49,7 @@ def calc_entropia(i_disc, entradas):
 	entropia = 0
 	for i in range(n_sub_grupos):
 		for j in range(4):
-			prob = (labels[i][j] / len(labels[i]))
+			prob = (labels[i][j] / len(labels[i])) #ERRADAO
 			entropia += prob * log((1/prob), 2)
 
 	return entropia
@@ -117,7 +117,6 @@ def separa_por_atributo(i_disc, entradas):
 	for i in range(n_sub_grupos):
 		sub_grupos.append([]) # lista vazia
 
-	#discretador = [[3, -4, 0, 4], [5, 20, 80, 140, 160, 200], [3, 7, 15, 22]]
 	# adiciona uma entrada em cada subgrupo respectivo
 	for e in entradas:
 		subg = 0
