@@ -3,8 +3,8 @@ import random
 import numpy
 from scipy.special import expit #exipit é a sigmoid
 
-N_ENTRADAS_TREINO = 1000
-N_EPOCAS = 50
+N_ENTRADAS_TREINO = 100
+N_EPOCAS = 5
 TAM_MINI = 10 #queisso???
 TAXA_APRENDIZAGEM = 0.01
 #numeros de entrada e saidas de cada camada
@@ -19,7 +19,16 @@ N_NEU_C3 = 4
 
 #flags de "debug" = print
 DEBUG_CAM = False
-DEBUG_NEU = False
+DEBUG_NEU = True
+
+#normalizações
+MIN_QPA = -10
+MAX_QPA = 10
+MIN_PUL = 0
+MAX_PUL = 200
+MIN_RSP = 0
+MAX_RSP = 22
+
 
 saida_esperada = [[1.00,0.00,0.00,0.00],[0.00,1.00,0.00,0.00],[0.00,0.00,1.00,0.00],[0.00,0.00,0.00,1.00]] #alvos pra treino do back
 
@@ -49,7 +58,7 @@ class Neuronio:
 		n = len(entradas)
 		for i in range(1, n + 1):
 			som += entradas[i-1] * self.pesos[i]		
-		som += self.pesos[0] # esse aqui é o vies (indice 0 do vetor de pesos)
+		som -= self.pesos[0] # esse aqui é o vies (indice 0 do vetor de pesos)
 
 		self.ultima_som = som
 		self.ultima_entrada = entradas
@@ -129,12 +138,12 @@ class MLP:
 		self.camadas.append(camada)
 
 	def processa(self, entrada):
-		saida = entrada
+		saida = None
 		for i in range(len(self.camadas)):
 			if (DEBUG_CAM):
 				print(f"camada {i}")
-			saida = (self.camadas[i].processa(saida)) # enquanto tiver camada a saida de um é a entrada dotro
-
+			saida = (self.camadas[i].processa(entrada)) # enquanto tiver camada a saida de um é a entrada dotro
+			entrada = saida
 		return saida
 	'''
 	def calcula_custo(entrada,saida):
@@ -155,7 +164,12 @@ class MLP:
 		#aqui precisa orquestrar o treinamento em cada mini pedaço de treino para cada época
 		return 1
 
-
+def normaliza(entradas):
+	for e in entradas:
+		e[1] = (e[1] - MIN_QPA) / (MAX_QPA - MIN_QPA)
+		e[2] = (e[2] - MIN_PUL) / (MAX_PUL - MIN_PUL)
+		e[3] = (e[3] - MIN_RSP) / (MAX_RSP - MIN_RSP)
+	return entradas
 def main():
 	mlp = MLP()
 
@@ -168,11 +182,17 @@ def main():
 	dados = ent.lerEntradas(f, 0, N_ENTRADAS_TREINO)
 	f.close()
 
+	dados = normaliza(dados)
+
 	for e in range(N_EPOCAS):
 		print(f"epoca {e}")
 		for i in dados:
 			saida = mlp.processa((i[1],i[2],i[3]))
-			print(f"classe esperada: {i[5]} | saida: {saida}")
+
+			print(f"\n entrada: [{i[1]}, {i[2]}, {i[3]}]") 
+			print(f" classe esperada: {i[5]}") 
+			print(f" saida: {saida} \n ")
+
 			mlp.uma_epoca(saida,i[5]-1) #-1 para evitar que ele tente acessar o indice 4 quando a classe for 4 e quebre
 	
 if __name__ == "__main__":
