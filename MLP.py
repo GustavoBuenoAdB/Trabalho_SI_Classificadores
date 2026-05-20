@@ -10,8 +10,8 @@ N_EPOCAS = 10
 TAM_MINI = 10 #queisso???
 TAXA_APRENDIZAGEM = 0.02
 
-MIN_PESO = -5.0
-MAX_PESO = 5.0
+MIN_PESO = 0.1
+MAX_PESO = 0.9
 
 #numeros de entrada e saidas de cada camada
 N_ENT_C1 = 3
@@ -21,7 +21,7 @@ N_ENT_C2 = 6
 N_NEU_C2 = 5
 
 N_ENT_C3 = 5
-N_NEU_C3 = 4
+N_NEU_C3 = 1
 
 #flags de "debug" = print
 DEBUG_CAM = False
@@ -35,6 +35,8 @@ MIN_PUL = 0
 MAX_PUL = 200
 MIN_RSP = 0
 MAX_RSP = 22
+MIN_GRA = 0
+MAX_GRA = 100
 
 
 saidas_esperadas = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]] #alvos pra treino do back
@@ -53,7 +55,7 @@ class Neuronio:
 
 		self.ult_ent = []
 		self.ult_z = [] #essa é a ultima soma de pesos vezes entradas, antes da sigmoid
-		self.ult_a = []
+		self.ult_a = 0
 		self.delta = 0 # derivada de Custo em relação a derivada de ativação da camada.
 		self.taxa_apr = taxa_aprendizado
 
@@ -137,10 +139,10 @@ class Camada:
 			# attualização do vies do neuronio n
 			erro_propagado_vies = 0
 			for n_prox in prox_camada.neuronios:
-				c = (derivada_sigmoid(n_prox.ult_z) * n_prox.delta) 
+				c = 1*(derivada_sigmoid(n_prox.ult_z) * n_prox.delta) 
 				erro_propagado_vies += c
 
-			atualizacao.append(n.taxa_apr * erro_propagado_vies) # [0] do vetor de pesos
+			atualizacao.append(n.taxa_apr * n.ult_a * erro_propagado_vies) # [0] do vetor de pesos
 
 			# atualização de cada peso do neuronio n
 			erro_propagado = 0 #erro propagado por n para a proxima camada
@@ -151,9 +153,14 @@ class Camada:
 			n.delta =  erro_propagado
 
 			for j in range(len(n.pesos) - 1): 
-				atualizacao.append(-1 *(erro_propagado * n.taxa_apr * n.ult_ent[j]))
-				# quanta merda ta na minha conta  *  quanto eu aprendo cas minhas cagada  *  quanto poder me deram  * quanto desse poder eu usei. e o -1 pq quero ir na direção oposta a minhas cagada
-			
+				atualizacao.append(-1*(n.taxa_apr * (n.pesos[j + 1] + n.ult_a * erro_propagado)))
+				print(n.taxa_apr)
+				print(n.pesos[j + 1])
+				print(n.ult_a)
+				print(erro_propagado)
+
+				print(atualizacao[-1])
+	# quanta merda ta na minha conta  *  quanto eu aprendo cas minhas cagada  *  quanto poder me deram  * quanto desse poder eu usei. e o -1 pq quero ir na direção oposta a minhas cagada
 
 			if (DEBUG_TRN):
 				print(f"atualização do neuronio {i}:")
@@ -164,7 +171,7 @@ class Camada:
 	def calcula_deltas_saida(self, saida_esperada):
 		i = 0
 		for n in self.neuronios:
-			n.delta = 2*(n.ult_a - saida_esperada[i])
+			n.delta = derivada_sigmoid(self.neuronios[0].ult_z) * (n.ult_a - saida_esperada[i])
 			i += 1
 	
 class MLP:
@@ -198,13 +205,14 @@ class MLP:
 	def treina_epoca(self, entradas): 
 		for e in entradas:
 			self.processa((e[1],e[2],e[3]))
-			self.backpropagation(saidas_esperadas[e[5] - 1])
+			self.backpropagation([e[4]])
 
 def normaliza(entradas):
 	for e in entradas:
 		e[1] = (e[1] - MIN_QPA) / (MAX_QPA - MIN_QPA)
 		e[2] = (e[2] - MIN_PUL) / (MAX_PUL - MIN_PUL)
 		e[3] = (e[3] - MIN_RSP) / (MAX_RSP - MIN_RSP)
+		e[4] = (e[4] - MIN_GRA) / (MAX_GRA - MIN_GRA)
 	return entradas
 
 def main():
@@ -240,8 +248,8 @@ def main():
 	for e in dados_val:
 		saida = mlp.processa((e[1],e[2],e[3]))
 		print(f"entrada: [{e[1]}, {e[2]}, {e[3]}]")
-		print(f" classe esperada: {e[5]}")
-		print(f" saida: [{round(saida[0],4)}, {round(saida[1],4)}, {round(saida[2],4)}, {round(saida[3],4)}] \n ")
+		print(f" saida esperada: {e[4]}")
+		print(f" saida: {saida} \n ")
 		input("")
 
 if __name__ == "__main__":

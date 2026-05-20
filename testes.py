@@ -27,6 +27,9 @@ def main():
 	hist_labels = [0, 0, 0, 0]
 	hist_labels_com_lim = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
 
+	max_gravidade = 0
+	min_gravidade = 100
+
 	for e in entradas:
 		#somatorios totais
 		somas[0] += e[ID_QPA]
@@ -51,8 +54,17 @@ def main():
 		if LIM_INF_HIST_RSP <= e[ID_RSP] and e[ID_RSP] <= LIM_SUP_HIST_RSP:
 			hist_labels_com_lim[2][e[ID_LAB] - 1] += 1
 
+		if e[4] < min_gravidade:
+			min_gravidade = e[4]
+		if e[4] > max_gravidade:
+			max_gravidade = e[4]
+
 	# mostrando resultados
 	print(f"Em {N_ENTRADAS} entradas: \n")
+
+	print(f"Gravidade mínima: {min_gravidade}")
+	print(f"Gravidade máxima: {max_gravidade}") 
+	print("") #\n
 
 	print("Médias:") 
 	print(f" - qPA: {(somas[0] / N_ENTRADAS)}")
