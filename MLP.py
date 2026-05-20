@@ -4,11 +4,11 @@ import numpy
 from scipy.special import expit #exipit é a sigmoid
 
 N_ENTRADAS = 1499 # [1, 1500] = 1499
-N_ENTRADAS_TREINO = 1000
-N_EPOCAS = 5
+N_ENTRADAS_TREINO = 300
+N_EPOCAS = 10
 
 TAM_MINI = 10 #queisso???
-TAXA_APRENDIZAGEM = 0.01
+TAXA_APRENDIZAGEM = 0.02
 
 MIN_PESO = -5.0
 MAX_PESO = 5.0
@@ -37,7 +37,7 @@ MIN_RSP = 0
 MAX_RSP = 22
 
 
-saidas_esperadas = [[1.00, 0.00, 0.00, 0.00], [0.00, 1.00, 0.00, 0.00], [0.00, 0.00, 1.00, 0.00], [0.00, 0.00, 0.00, 1.00]] #alvos pra treino do back
+saidas_esperadas = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]] #alvos pra treino do back
 
 def f_ativacao(x):
 	return expit(x)
@@ -88,7 +88,7 @@ class Neuronio:
 			print(f"- atualização: {atualizacao}")
 
 		for i in range(self.n_entradas):
-			self.pesos[i] = self.pesos[i] - atualizacao[i]
+			self.pesos[i] = self.pesos[i] + atualizacao[i]
 			
 			#normalizando os pesos
 			if (self.pesos[i] < MIN_PESO):
@@ -148,11 +148,15 @@ class Camada:
 				c = (n.ult_a) * (derivada_sigmoid(n_prox.ult_z)) * n_prox.delta 
 				erro_propagado += c 
 
-			for j in range(len(n.pesos) - 1):
-				atualizacao.append(erro_propagado * n.ult_ent[j] * n.taxa_apr) #atualização ta sempre positiva, pq?
+			n.delta =  erro_propagado
 
-			n.delta = derivada_sigmoid(n.ult_z) * erro_propagado
+			for j in range(len(n.pesos) - 1): 
+				atualizacao.append(-1 *(erro_propagado * n.taxa_apr * n.ult_ent[j]))
+				# quanta merda ta na minha conta  *  quanto eu aprendo cas minhas cagada  *  quanto poder me deram  * quanto desse poder eu usei. e o -1 pq quero ir na direção oposta a minhas cagada
+			
 
+			if (DEBUG_TRN):
+				print(f"atualização do neuronio {i}:")
 			n.atualiza_pesos(atualizacao)
 
 			i += 1
@@ -180,11 +184,15 @@ class MLP:
 		return saida
 	
 	def backpropagation(self, saida_esperada):
-		n_cam = len(self.camadas)
+		n_cam = len(self.camadas) - 1
 
-		self.camadas[n_cam - 1].calcula_deltas_saida(saida_esperada)
-		for i in range(1, n_cam + 1): # vai de 1 a n
+		self.camadas[n_cam].calcula_deltas_saida(saida_esperada)
+		for i in range(0, n_cam + 1): # vai de 1 a n
+			if (DEBUG_TRN):
+				print(f"=== Treinando camada {n_cam - i - 1} baseada na camada {n_cam - i}")
+
 			self.camadas[n_cam - i - 1].atualiza_pesos(self.camadas[n_cam - i]) # a penultima camada se atualiza baseada na ultima e assim por diante
+			
 			# quem atualiza a ultima camada????
 
 	def treina_epoca(self, entradas): 
@@ -205,12 +213,12 @@ def main():
 	mlp.add_camada(Camada(N_ENT_C1, N_NEU_C1))
 	mlp.add_camada(Camada(N_ENT_C2, N_NEU_C2))
 	mlp.add_camada(Camada(N_ENT_C3, N_NEU_C3))
-	mlp.add_camada(Camada(N_ENT_C3, N_NEU_C3)) #camada de saida
-	#cam_saida = mlp.camadas[len(mlp.camadas) - 1]
-	#for n in cam_saida.neuronios:
-		#n.pesos[0] = 0.0
-		#for i in range(1, len(n.pesos)):
-			#n.pesos[i] = 1.0 
+	'''cam_saida = Camada(N_NEU_C3, N_NEU_C3)
+	for n in cam_saida.neuronios:
+		n.pesos[0] = 0.0
+		for i in range(1, len(n.pesos)):
+			n.pesos[i] = 1.0 
+	mlp.add_camada(cam_saida)'''
 	
 	f = open('data/02_treino_sinais_vitais_com_label.txt', 'r', encoding='UTF-8')
 	dados = ent.lerEntradas(f, 0, N_ENTRADAS_TREINO)
