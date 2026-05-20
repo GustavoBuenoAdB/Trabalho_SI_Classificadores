@@ -6,20 +6,21 @@ from scipy.special import expit #exipit é a sigmoid
 N_ENTRADAS_TREINO = 100
 N_EPOCAS = 5
 TAM_MINI = 10 #queisso???
-TAXA_APRENDIZAGEM = 0.01
+TAXA_APRENDIZAGEM = 0.05
 #numeros de entrada e saidas de cada camada
 N_ENT_C1 = 3
-N_NEU_C1 = 4
+N_NEU_C1 = 6
 
-N_ENT_C2 = 4
-N_NEU_C2 = 3
+N_ENT_C2 = 6
+N_NEU_C2 = 5
 
-N_ENT_C3 = 3
+N_ENT_C3 = 5
 N_NEU_C3 = 4
 
 #flags de "debug" = print
 DEBUG_CAM = False
-DEBUG_NEU = True
+DEBUG_NEU = False
+DEBUG_TRN = False
 
 #normalizações
 MIN_QPA = -10
@@ -46,10 +47,9 @@ class Neuronio:
 		self.ultima_entrada = []
 		self.ultima_ativacao = [] #essa é a ultima saida?
 		self.ultima_som = [] #antes da sigmoid?
-		self.vies = random.random()
 		# inicializa os pesos aleatoriamente
 		for i in range (n_entradas + 1):
-			self.pesos.append(random.uniform(-0.5, 0.5))
+			self.pesos.append(random.uniform(0.1, 0.9))
 
 
 	def processa(self, entradas):
@@ -70,10 +70,15 @@ class Neuronio:
 		return ativacao
 	
 	def atualiza_pesos(self, delta, taxa): #OBS: taxa pode virar parametro interno se nois for adicionar MOMENTUM
-		self.pesos[0] = self.pesos[0] - taxa * delta  # atualiza vies
+		if (DEBUG_TRN):
+			print(f"- pesos............: {self.pesos}")
+		self.pesos[0] = self.pesos[0] + taxa * delta  # atualiza vies
 		for i in range(self.n_entradas):
 			self.pesos[i+1] -= taxa * delta * self.ultima_entrada[i] #pq i -1? AUGUSTO TODO ??? q ??? acho q tu ja arrumou isso, ja que entrada é n+1 de pesos em tamanho.
 			#pq - aqui? n é +???
+
+		if (DEBUG_TRN):
+			print(f"- pesos_atualizados: {self.pesos}\n")
 
 	
 class Camada:
@@ -103,6 +108,9 @@ class Camada:
 		return saida
 	
 	def backprop(self, deltas_frente, camada_frente, taxa):
+		if (DEBUG_TRN):
+			print("treino da camada anterior:")
+		
 		deltas = []
 		for i, neuronio in enumerate(self.neuronios): #enumerates? len(self.neuronio) n funciona?
 			erro = 0
@@ -116,10 +124,15 @@ class Camada:
 		return deltas
 
 	def backprop_saida(self, saida, esperado, taxa):
+		if (DEBUG_TRN):
+			print("treino da camada de saida:")
+			print(f"saida esperada: {saida_esperada[esperado]}")
+			print(f"saida obtida..: {saida}\n")
+		
 		deltas = []
 		for i in range(N_NEU_C3):
-			erro = saida[i] - saida_esperada[esperado][i]
-			delta = self.calcula_delta(erro,i)
+			erro = pow((saida[i] - saida_esperada[esperado][i]), 2) # pq aqui o erro n é quadratico???
+			delta = self.calcula_delta(erro, i)
 			self.neuronios[i].atualiza_pesos(delta, taxa)
 			deltas.append(delta)
 		return deltas
@@ -127,7 +140,7 @@ class Camada:
 	def calcula_delta(self, erro, indx):
 		#delta = derivada do custo * derivada da sigmoide
 		d_sigmoide = derivada_sigmoid(self.neuronios[indx].ultima_som) 
-		delta = erro * d_sigmoide
+		delta = erro * d_sigmoide # esse caba é o que ???
 		return delta
 	
 class MLP:
@@ -157,9 +170,9 @@ class MLP:
 	def uma_epoca(self,saida,esperado): #bro, isso aqui é treino, epoca é cada ciclo completo que vc faz no conjunto de treino KSKSKSKSKSK confundiu se pa
 		deltas = self.camadas[2].backprop_saida(saida, esperado, TAXA_APRENDIZAGEM)
 		#print(deltas)
-		for i in range(len(self.camadas)-2,0,-1):
-			deltas = self.camadas[i].backprop(deltas,self.camadas[i+1],TAXA_APRENDIZAGEM)
-	
+		for i in range(len(self.camadas)-2, -1, -1):
+			deltas = self.camadas[i].backprop(deltas, self.camadas[i+1],TAXA_APRENDIZAGEM)
+
 	def treina(self,):
 		#aqui precisa orquestrar o treinamento em cada mini pedaço de treino para cada época
 		return 1
@@ -189,12 +202,18 @@ def main():
 		for i in dados:
 			saida = mlp.processa((i[1],i[2],i[3]))
 
-			print(f"\n entrada: [{i[1]}, {i[2]}, {i[3]}]") 
+			if (DEBUG_TRN):
+				print(f"\n entrada: [{i[1]}, {i[2]}, {i[3]}]") 
+
 			print(f" classe esperada: {i[5]}") 
 			print(f" saida: {saida} \n ")
 
-			mlp.uma_epoca(saida,i[5]-1) #-1 para evitar que ele tente acessar o indice 4 quando a classe for 4 e quebre
-	
+			#treino
+			mlp.uma_epoca(saida, i[5]-1) #-1 para evitar que ele tente acessar o indice 4 quando a classe for 4 e quebre
+
+			if (DEBUG_TRN):
+				input(f"entrada {i} processada.")
+
 if __name__ == "__main__":
 	main()
 

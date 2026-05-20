@@ -1,6 +1,6 @@
 import entrada as ent
 
-N_ENTRADAS = 1499
+N_ENTRADAS = 1499 # [1, 1500] = 1499 
 
 # limites para o histograma
 LIM_INF_HIST_QPA = -10
