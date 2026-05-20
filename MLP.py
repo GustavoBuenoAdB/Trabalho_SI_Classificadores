@@ -4,7 +4,7 @@ import numpy
 from scipy.special import expit #exipit é a sigmoid
 
 N_ENTRADAS = 1499 # [1, 1500] = 1499
-N_ENTRADAS_TREINO = 300
+N_ENTRADAS_TREINO = 1000
 N_EPOCAS = 10
 
 TAM_MINI = 10 #queisso???
@@ -15,18 +15,18 @@ MAX_PESO = 0.9
 
 #numeros de entrada e saidas de cada camada
 N_ENT_C1 = 3
-N_NEU_C1 = 6
+N_NEU_C1 = 4
 
-N_ENT_C2 = 6
-N_NEU_C2 = 5
+N_ENT_C2 = 4
+N_NEU_C2 = 3
 
-N_ENT_C3 = 5
+N_ENT_C3 = 3
 N_NEU_C3 = 1
 
 #flags de "debug" = print
 DEBUG_CAM = False
 DEBUG_NEU = False
-DEBUG_TRN = True
+DEBUG_TRN = False
 
 #normalizações
 MIN_QPA = -10
@@ -54,7 +54,7 @@ class Neuronio:
 		self.pesos = []
 
 		self.ult_ent = []
-		self.ult_z = [] #essa é a ultima soma de pesos vezes entradas, antes da sigmoid
+		self.ult_z = 0 #essa é a ultima soma de pesos vezes entradas, antes da sigmoid
 		self.ult_a = 0
 		self.delta = 0 # derivada de Custo em relação a derivada de ativação da camada.
 		self.taxa_apr = taxa_aprendizado
@@ -66,6 +66,9 @@ class Neuronio:
 		for i in range (n_entradas + 1):
 			self.pesos.append(random.uniform(0.1, 0.9))
 
+		for i in range(self.n_entradas):
+			self.ult_ent.append(0.0)
+
 	def processa(self, entradas):
 		
 		som = 0
@@ -76,12 +79,14 @@ class Neuronio:
 		ativacao = f_ativacao(som)
 
 		#armazenando os valores do processamento
-		self.ult_ent = entradas
+		for i in range(self.n_entradas):
+			self.ult_ent[i] = entradas[i]
 		self.ult_z = som
 		self.ult_a = ativacao
 
 		if (DEBUG_NEU):
-			print(f" - entrada: {entradas} \n - pesos: {self.pesos} \n - soma: {som}")
+			print(f" - soma: {som} \n - pesos: {self.pesos}")
+
 		return ativacao
 	
 	def atualiza_pesos(self, atualizacao): #OBS: taxa pode virar parametro interno se nois for adicionar MOMENTUM
@@ -90,13 +95,13 @@ class Neuronio:
 			print(f"- atualização: {atualizacao}")
 
 		for i in range(self.n_entradas):
-			self.pesos[i] = self.pesos[i] + atualizacao[i]
+			self.pesos[i] += atualizacao[i]
 			
 			#normalizando os pesos
-			if (self.pesos[i] < MIN_PESO):
+			'''f (self.pesos[i] < MIN_PESO):
 				self.pesos[i] = MIN_PESO
 			elif(self.pesos[i] > MAX_PESO):
-				self.pesos[i] = MAX_PESO
+				self.pesos[i] = MAX_PESO'''
 
 		if (DEBUG_TRN):
 			print(f"- pesos_atualizados: {self.pesos}\n")
@@ -107,12 +112,10 @@ class Camada:
 		self.n_entradas = n_entradas
 		self.n_saidas = n_saidas #que tbm é o numero de neuronios
 		self.neuronios = []
-		self.deltas = [] # derivada de Custo em relação a derivada de ativação da camada.
 
 		# inicializa os neuronios da camada
 		for i in range(n_saidas):
 			self.neuronios.append(Neuronio(self.n_entradas, TAXA_APRENDIZAGEM))
-			self.deltas.append(0) 
 
 	def processa(self, entrada):
 		# processa a entrada em cada neuronio e devolve o vetor de saida
@@ -132,7 +135,7 @@ class Camada:
 		return saida
 	
 	def atualiza_pesos(self, prox_camada):
-		i = 0
+
 		for n in self.neuronios:
 			atualizacao = []
 
@@ -141,38 +144,22 @@ class Camada:
 			for n_prox in prox_camada.neuronios:
 				c = 1*(derivada_sigmoid(n_prox.ult_z) * n_prox.delta) 
 				erro_propagado_vies += c
-
-			atualizacao.append(n.taxa_apr * n.ult_a * erro_propagado_vies) # [0] do vetor de pesos
+				
+			atualizacao.append((n.taxa_apr * n.ult_a * erro_propagado_vies)) # [0] do vetor de pesos
 
 			# atualização de cada peso do neuronio n
-			erro_propagado = 0 #erro propagado por n para a proxima camada
+			n.delta = 0 #erro propagado por n para a proxima camada
 			for n_prox in prox_camada.neuronios:
-				c = (n.ult_a) * (derivada_sigmoid(n_prox.ult_z)) * n_prox.delta 
-				erro_propagado += c 
-
-			n.delta =  erro_propagado
-
+				n.delta += (n.ult_a) * (derivada_sigmoid(n_prox.ult_z)) * n_prox.delta 
+				
 			for j in range(len(n.pesos) - 1): 
-				atualizacao.append(-1*(n.taxa_apr * (n.pesos[j + 1] + n.ult_a * erro_propagado)))
-				print(n.taxa_apr)
-				print(n.pesos[j + 1])
-				print(n.ult_a)
-				print(erro_propagado)
+				atualizacao.append(-1*(n.taxa_apr * (n.pesos[j + 1] * n.ult_a * n.delta)))
 
-				print(atualizacao[-1])
-	# quanta merda ta na minha conta  *  quanto eu aprendo cas minhas cagada  *  quanto poder me deram  * quanto desse poder eu usei. e o -1 pq quero ir na direção oposta a minhas cagada
-
-			if (DEBUG_TRN):
-				print(f"atualização do neuronio {i}:")
 			n.atualiza_pesos(atualizacao)
 
-			i += 1
-
 	def calcula_deltas_saida(self, saida_esperada):
-		i = 0
-		for n in self.neuronios:
-			n.delta = derivada_sigmoid(self.neuronios[0].ult_z) * (n.ult_a - saida_esperada[i])
-			i += 1
+		self.neuronios[0].delta = derivada_sigmoid(self.neuronios[0].ult_z) * (self.neuronios[0].ult_a - (saida_esperada[0]))
+
 	
 class MLP:
 	def __init__(self):
@@ -183,24 +170,24 @@ class MLP:
 
 	def processa(self, entrada):
 		saida = None
-		for i in range(len(self.camadas)):
+		for i in range(len(self.camadas) - 1):
 			if (DEBUG_CAM):
 				print(f"camada {i}")
 			saida = (self.camadas[i].processa(entrada)) # enquanto tiver camada a saida de um é a entrada dotro
 			entrada = saida
+
+		self.camadas[-1].processa(entrada) 
 		return saida
 	
 	def backpropagation(self, saida_esperada):
-		n_cam = len(self.camadas) - 1
+		n_cam = len(self.camadas)
 
-		self.camadas[n_cam].calcula_deltas_saida(saida_esperada)
-		for i in range(0, n_cam + 1): # vai de 1 a n
+		self.camadas[n_cam - 1].calcula_deltas_saida(saida_esperada)
+		for i in range(1, n_cam): # vai de [1 a n[   n-1 termos
 			if (DEBUG_TRN):
 				print(f"=== Treinando camada {n_cam - i - 1} baseada na camada {n_cam - i}")
 
-			self.camadas[n_cam - i - 1].atualiza_pesos(self.camadas[n_cam - i]) # a penultima camada se atualiza baseada na ultima e assim por diante
-			
-			# quem atualiza a ultima camada????
+			self.camadas[n_cam - i - 1].atualiza_pesos(self.camadas[n_cam - i])
 
 	def treina_epoca(self, entradas): 
 		for e in entradas:
@@ -221,12 +208,12 @@ def main():
 	mlp.add_camada(Camada(N_ENT_C1, N_NEU_C1))
 	mlp.add_camada(Camada(N_ENT_C2, N_NEU_C2))
 	mlp.add_camada(Camada(N_ENT_C3, N_NEU_C3))
-	'''cam_saida = Camada(N_NEU_C3, N_NEU_C3)
+	cam_saida = Camada(N_NEU_C3, N_NEU_C3)
 	for n in cam_saida.neuronios:
 		n.pesos[0] = 0.0
 		for i in range(1, len(n.pesos)):
 			n.pesos[i] = 1.0 
-	mlp.add_camada(cam_saida)'''
+	mlp.add_camada(cam_saida)
 	
 	f = open('data/02_treino_sinais_vitais_com_label.txt', 'r', encoding='UTF-8')
 	dados = ent.lerEntradas(f, 0, N_ENTRADAS_TREINO)
@@ -247,6 +234,7 @@ def main():
 
 	for e in dados_val:
 		saida = mlp.processa((e[1],e[2],e[3]))
+
 		print(f"entrada: [{e[1]}, {e[2]}, {e[3]}]")
 		print(f" saida esperada: {e[4]}")
 		print(f" saida: {saida} \n ")
