@@ -16,7 +16,8 @@ def lerLinha(file, linha_inicio, final):
 def lerEntradas(file, linha_inicio, n_entradas):
     lista = []
     for i in range(linha_inicio, linha_inicio + n_entradas):
-        lista.append(lerLinha(file, i, i+2)) # +2 pq vai ir em um range e tem que ter o de consideração
+        le = i % 1499 #leitura em relogio (GAMBIARRA LORE)
+        lista.append(lerLinha(file, le, le+2)) # +2 pq vai ir em um range e tem que ter o de consideração
     return lista
 
 '''

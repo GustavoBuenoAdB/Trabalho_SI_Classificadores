@@ -2,13 +2,16 @@ import entrada as ent
 from math import log
 
 N_ENTRADAS = 1499
-N_ENTRADAS_TREINO = 1000
-N_ARVORES = 10
-FLAG_BOOST = False
+N_ENTRADAS_TREINO = 1200
+N_ENTRADAS_VALIDACAO = N_ENTRADAS - N_ENTRADAS_TREINO
+N_ARVORES = 12
+FLAG_BOOST = False # mais que 20 arvores é melhor essa que a otra
 FLAG_BOOST_TODA_FLORESTA = True
-MULTIPLICADOR = 4
+MULTIPLICADOR = 10
 TRSH_ADA = 0.5
 N_ENTR_P_ARV = (N_ENTRADAS_TREINO) // N_ARVORES
+
+VALIDACAO_CRUZADA = True
 
 ARQUIVO = 'data/02_treino_sinais_vitais_com_label.txt'
 
@@ -304,74 +307,149 @@ class Floresta:
 
 def main():
 
-	file = open(ARQUIVO,'r',encoding='UTF-8')
-	treino = ent.lerEntradas(file, 0, N_ENTRADAS_TREINO)
-	file.close()
+	if VALIDACAO_CRUZADA:
 
-	print("-=- Treinando... -=-")
-	flor = Floresta(N_ARVORES, treino)
-	print("-=- Treino Finalizado -=-")
+		for i in range((N_ENTRADAS) // (N_ENTRADAS_VALIDACAO)):
 
-	file = open(ARQUIVO,'r',encoding='UTF-8')
-	validacao = ent.lerEntradas(file, N_ENTRADAS_TREINO, (N_ENTRADAS - N_ENTRADAS_TREINO))
-	file.close()
+			print(f"validação {i} de {(N_ENTRADAS) // (N_ENTRADAS_VALIDACAO)}")
 
-	vp = 0
-	fp = 0
-	vn = 0
-	fn = 0
+			file = open(ARQUIVO,'r',encoding='UTF-8')
+			treino = ent.lerEntradas(file, (N_ENTRADAS_VALIDACAO * i), N_ENTRADAS_TREINO)
+			file.close()
 
-	for e in validacao:
-		prob, grav = flor.processa(e)
+			print("-=- Treinando... -=-")
+			flor = Floresta(N_ARVORES, treino)
+			print("-=- Treino Finalizado -=-")
 
-		#estado Critico
-		if (e[ID_LAB] == 1):
-			if (max(prob) != prob[0]):
-				fp += 1 #falou que ta bem estando mal
-			else:
-				vn +=1
-		
-		#estado Instavel
-		if (e[ID_LAB] == 2):
-			if (max(prob) != prob[1]):
-				fp += 1 #falou que ta bem estando mal
-			else:
-				vn +=1
+			file = open(ARQUIVO,'r',encoding='UTF-8')
+			validacao = ent.lerEntradas(file, (N_ENTRADAS_VALIDACAO * i) + N_ENTRADAS_TREINO, (N_ENTRADAS_VALIDACAO))
+			file.close()
 
-		#estado Potencialmente Estavel
-		if (e[ID_LAB] == 3):
-			if (max(prob) != prob[2]):
-				fn += 1 #falou que ta mal estando bem
-			else:
-				vp +=1
+			vp = 0
+			fp = 0
+			vn = 0
+			fn = 0
 
-		#estado Estavel
-		if (e[ID_LAB] == 4):
-			if (max(prob) != prob[3]):
-				fn += 1 #falou que ta mal estando bem
-			else:
-				vp +=1
+			for e in validacao:
+				prob, grav = flor.processa(e)
 
-		#print(f"Entrada: gravidade {e[ID_GRV]}, label {e[ID_LAB]}")
-		#print(f"Saida..: gravidade {grav}, probs {prob[e[ID_LAB] - 1]}")
-		#input("")
+				#estado Critico
+				if (e[ID_LAB] == 1):
+					if (max(prob) != prob[0]):
+						fp += 1 #falou que ta bem estando mal
+					else:
+						vn +=1
+				
+				#estado Instavel
+				if (e[ID_LAB] == 2):
+					if (max(prob) != prob[1]):
+						fp += 1 #falou que ta bem estando mal
+					else:
+						vn +=1
 
-	if (vp + vn + fp + fn) != 0:
-		acuracia = (vp + vn) / (vp + vn + fp + fn)
-		print(f"acuracia: {round(acuracia, 4) * 100} %")
-	if (vp + fp) != 0:
-		precisao = (vp) / (vp + fp)
-		print(f"precisao: {round(precisao, 4) * 100} %")
+				#estado Potencialmente Estavel
+				if (e[ID_LAB] == 3):
+					if (max(prob) != prob[2]):
+						fn += 1 #falou que ta mal estando bem
+					else:
+						vp +=1
 
-	if (vp + fn) != 0:
-		recall = (vp) / (vp + fn)
-		print(f"recall..: {round(recall, 4) * 100} %")
+				#estado Estavel
+				if (e[ID_LAB] == 4):
+					if (max(prob) != prob[3]):
+						fn += 1 #falou que ta mal estando bem
+					else:
+						vp +=1
 
-	if precisao != 0 and recall != 0:
-		f1 = 2*((precisao * recall) / (precisao + recall))
-		print(f"f1......: {round(f1, 4) * 100} %")
+				#print(f"Entrada: gravidade {e[ID_GRV]}, label {e[ID_LAB]}")
+				#print(f"Saida..: gravidade {grav}, probs {prob[e[ID_LAB] - 1]}")
+				#input("")
 
-	return 0
+			if (vp + vn + fp + fn) != 0:
+				acuracia = (vp + vn) / (vp + vn + fp + fn)
+				print(f"acuracia: {round(acuracia, 4) * 100} %")
+			if (vp + fp) != 0:
+				precisao = (vp) / (vp + fp)
+				print(f"precisao: {round(precisao, 4) * 100} %")
+
+			if (vp + fn) != 0:
+				recall = (vp) / (vp + fn)
+				print(f"recall..: {round(recall, 4) * 100} %")
+
+			if precisao != 0 and recall != 0:
+				f1 = 2*((precisao * recall) / (precisao + recall))
+				print(f"f1......: {round(f1, 4) * 100} %")
+
+
+	else:
+		file = open(ARQUIVO,'r',encoding='UTF-8')
+		treino = ent.lerEntradas(file, 0, N_ENTRADAS_TREINO)
+		file.close()
+
+		print("-=- Treinando... -=-")
+		flor = Floresta(N_ARVORES, treino)
+		print("-=- Treino Finalizado -=-")
+
+		file = open(ARQUIVO,'r',encoding='UTF-8')
+		validacao = ent.lerEntradas(file, N_ENTRADAS_TREINO, (N_ENTRADAS - N_ENTRADAS_TREINO))
+		file.close()
+
+		vp = 0
+		fp = 0
+		vn = 0
+		fn = 0
+
+		for e in validacao:
+			prob, grav = flor.processa(e)
+
+			#estado Critico
+			if (e[ID_LAB] == 1):
+				if (max(prob) != prob[0]):
+					fp += 1 #falou que ta bem estando mal
+				else:
+					vn +=1
+			
+			#estado Instavel
+			if (e[ID_LAB] == 2):
+				if (max(prob) != prob[1]):
+					fp += 1 #falou que ta bem estando mal
+				else:
+					vn +=1
+
+			#estado Potencialmente Estavel
+			if (e[ID_LAB] == 3):
+				if (max(prob) != prob[2]):
+					fn += 1 #falou que ta mal estando bem
+				else:
+					vp +=1
+
+			#estado Estavel
+			if (e[ID_LAB] == 4):
+				if (max(prob) != prob[3]):
+					fn += 1 #falou que ta mal estando bem
+				else:
+					vp +=1
+
+			#print(f"Entrada: gravidade {e[ID_GRV]}, label {e[ID_LAB]}")
+			#print(f"Saida..: gravidade {grav}, probs {prob[e[ID_LAB] - 1]}")
+			#input("")
+
+		if (vp + vn + fp + fn) != 0:
+			acuracia = (vp + vn) / (vp + vn + fp + fn)
+			print(f"acuracia: {round(acuracia, 4) * 100} %")
+		if (vp + fp) != 0:
+			precisao = (vp) / (vp + fp)
+			print(f"precisao: {round(precisao, 4) * 100} %")
+
+		if (vp + fn) != 0:
+			recall = (vp) / (vp + fn)
+			print(f"recall..: {round(recall, 4) * 100} %")
+
+		if precisao != 0 and recall != 0:
+			f1 = 2*((precisao * recall) / (precisao + recall))
+			print(f"f1......: {round(f1, 4) * 100} %")
+
+		return 0
 
 if __name__ == "__main__":
 	main()
