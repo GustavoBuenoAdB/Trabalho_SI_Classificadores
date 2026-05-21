@@ -6,7 +6,8 @@ N_ENTRADAS_TREINO = 1000
 N_ARVORES = 10
 FLAG_BOOST = False
 FLAG_BOOST_TODA_FLORESTA = True
-MULTIPLICADOR = 10
+MULTIPLICADOR = 4
+TRSH_ADA = 0.5
 N_ENTR_P_ARV = (N_ENTRADAS_TREINO) // N_ARVORES
 
 ARQUIVO = 'data/02_treino_sinais_vitais_com_label.txt'
@@ -21,35 +22,37 @@ ID_LAB = 5
 #indice de nó que indica fim da arvore
 ID_FOLHA = 20
 
-DEBUB_VOT = True
+DEBUB_VOT = False
+DEBUG_TAM_ENTR = False
 
 #Discretando entradas
 # - qPA
 N_GRUPOS_PA = 3
 #limites superiores de cada grupo
-PA_BAIXA = -4 # entre [-10 e -4[
-PA_MEDIA = 4 # entre [-4 e 4[
+PA_BAIXA = -2 # entre [-10 e -3[
+PA_BOA = 2 # entre [-4 e 4[
 PA_ALTA = 10 # entre [4 e 10]
 
 # Pulso
-N_GRUPOS_PL = 5
+N_GRUPOS_PL = 4
 #limites superiores de cada grupo
-PL_BAIXISSIMO = 20 #entre [0 e 20[
-PL_BAIXO = 80 #entre [20 e 80[
-PL_MEDIO = 140 # entre [80 e 140[
-PL_ALTO = 160 #entre [140 e 160[
+PL_BAIXISSIMO = 40 #entre [0 e 20[
+PL_BAIXO = 120 #entre [20 e 40[
+PL_MEDIO = 160 # entre [40 e 140[
+PL_ALTO = 200 #entre [140 e 160[
+
 PL_ALTISSIMO = 200 #entre [160 e 200]
 
 #Respiração
 N_GRUPOS_RSP = 3
 #limites superiores de cada grupo
-RSP_BAIXA= 7 #entre [0 e 7[
-RSP_OK= 15 #entre [7 e 15[
+RSP_BAIXA= 10 #entre [0 e 7[
+RSP_OK= 20 #entre [7 e 15[
 RSP_ALTA = 22 # entre [15 e 22[		
 
 # inicializando o discretador de grupos
 discretador = []
-discretador.append([N_GRUPOS_PA, PA_BAIXA, PA_MEDIA, PA_ALTA])
+discretador.append([N_GRUPOS_PA, PA_BAIXA, PA_BOA, PA_ALTA])
 discretador.append([N_GRUPOS_PL, PL_BAIXISSIMO, PL_BAIXO, PL_MEDIO, PL_ALTO, PL_ALTISSIMO])
 discretador.append([N_GRUPOS_RSP, RSP_BAIXA, RSP_OK, RSP_ALTA])
 
@@ -253,11 +256,13 @@ class Floresta:
 				a = self.arvores[-1]
 				entr = self.adaboost(entr, a, 2)
 			
-			print(len(entr))
+			if (DEBUG_TAM_ENTR):
+				print(len(entr))
 
 			arv = Arvore(entr)
 			self.arvores.append(arv)
-			print(f"arvore {i} criada")
+			if (DEBUG_TAM_ENTR):
+				print(f"arvore {i} criada")
 	
 	def processa(self, entrada):
 		prob_res = [0.0, 0.0, 0.0, 0.0]
@@ -291,7 +296,7 @@ class Floresta:
 			prob, grav = arv_ant.processa(e)
 			entradas_boost.append(e)
 
-			if (prob[e[ID_LAB] - 1] > 0.3):
+			if (prob[e[ID_LAB] - 1] > TRSH_ADA):
 				for i in range(multiplicador - 1):
 					entradas_boost.append(e)
 
@@ -311,11 +316,60 @@ def main():
 	validacao = ent.lerEntradas(file, N_ENTRADAS_TREINO, (N_ENTRADAS - N_ENTRADAS_TREINO))
 	file.close()
 
+	vp = 0
+	fp = 0
+	vn = 0
+	fn = 0
+
 	for e in validacao:
 		prob, grav = flor.processa(e)
-		print(f"Entrada: gravidade {e[ID_GRV]}, label {e[ID_LAB]}")
-		print(f"Saida..: gravidade {grav}, probs {prob[e[ID_LAB] - 1]}")
-		input("")
+
+		#estado Critico
+		if (e[ID_LAB] == 1):
+			if (max(prob) != prob[0]):
+				fp += 1 #falou que ta bem estando mal
+			else:
+				vn +=1
+		
+		#estado Instavel
+		if (e[ID_LAB] == 2):
+			if (max(prob) != prob[1]):
+				fp += 1 #falou que ta bem estando mal
+			else:
+				vn +=1
+
+		#estado Potencialmente Estavel
+		if (e[ID_LAB] == 3):
+			if (max(prob) != prob[2]):
+				fn += 1 #falou que ta mal estando bem
+			else:
+				vp +=1
+
+		#estado Estavel
+		if (e[ID_LAB] == 4):
+			if (max(prob) != prob[3]):
+				fn += 1 #falou que ta mal estando bem
+			else:
+				vp +=1
+
+		#print(f"Entrada: gravidade {e[ID_GRV]}, label {e[ID_LAB]}")
+		#print(f"Saida..: gravidade {grav}, probs {prob[e[ID_LAB] - 1]}")
+		#input("")
+
+	if (vp + vn + fp + fn) != 0:
+		acuracia = (vp + vn) / (vp + vn + fp + fn)
+		print(f"acuracia: {round(acuracia, 4) * 100} %")
+	if (vp + fp) != 0:
+		precisao = (vp) / (vp + fp)
+		print(f"precisao: {round(precisao, 4) * 100} %")
+
+	if (vp + fn) != 0:
+		recall = (vp) / (vp + fn)
+		print(f"recall..: {round(recall, 4) * 100} %")
+
+	if precisao != 0 and recall != 0:
+		f1 = 2*((precisao * recall) / (precisao + recall))
+		print(f"f1......: {round(f1, 4) * 100} %")
 
 	return 0
 
