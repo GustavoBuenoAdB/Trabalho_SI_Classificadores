@@ -1,99 +1,110 @@
 import entrada as ent
 from math import log
 
-N_ENTRADAS = 1200
-N_VALIDACAO = N_ENTRADAS // 5 # n sei exatamente como escolhe esse valor
-N_ARVORES = 50
-N_ENTR_P_ARV = (N_ENTRADAS) // N_ARVORES
+N_ENTRADAS = 1499
+N_ENTRADAS_TREINO = 1000
+N_ARVORES = 10
+FLAG_BOOST = False
+FLAG_BOOST_TODA_FLORESTA = True
+MULTIPLICADOR = 10
+N_ENTR_P_ARV = (N_ENTRADAS_TREINO) // N_ARVORES
 
 ARQUIVO = 'data/02_treino_sinais_vitais_com_label.txt'
 
+#ids de acesso as entradas
+ID_QPA = 1
+ID_PUL = 2
+ID_RSP = 3
+ID_GRV = 4
+ID_LAB = 5
+
+#indice de nó que indica fim da arvore
+ID_FOLHA = 20
+
+DEBUB_VOT = True
+
 #Discretando entradas
 # - qPA
-
-discretador = [[3, -4, 0, 4], [5, 20, 80, 140, 160, 200], [3, 7, 15, 22]]
-
-
-PA_BAIXA = -4 # entre -10 e -4
-PA_MEDIA = 0 # entre -3 e 3
-PA_ALTA = 4 # entre 4 e 10
+N_GRUPOS_PA = 3
+#limites superiores de cada grupo
+PA_BAIXA = -4 # entre [-10 e -4[
+PA_MEDIA = 4 # entre [-4 e 4[
+PA_ALTA = 10 # entre [4 e 10]
 
 # Pulso
-PL_BAIXISSIMO = 20 #entre 0 e 20
-PL_BAIXO = 80 #entre 21 e 80
-PL_MEDIO = 140 # entre 81 e 140
-PL_ALTO = 160 #entre 141 e 160
-PL_ALTISSIMO = 200 #entre 161 e 200
+N_GRUPOS_PL = 5
+#limites superiores de cada grupo
+PL_BAIXISSIMO = 20 #entre [0 e 20[
+PL_BAIXO = 80 #entre [20 e 80[
+PL_MEDIO = 140 # entre [80 e 140[
+PL_ALTO = 160 #entre [140 e 160[
+PL_ALTISSIMO = 200 #entre [160 e 200]
 
 #Respiração
-RSP_BAIXA= 7 #entre 0 e 7
-RSP_OK= 15 #entre 7 e 15
-RSP_ALTA = 22 # entre 15 e 22		
+N_GRUPOS_RSP = 3
+#limites superiores de cada grupo
+RSP_BAIXA= 7 #entre [0 e 7[
+RSP_OK= 15 #entre [7 e 15[
+RSP_ALTA = 22 # entre [15 e 22[		
 
-# i_disc: 0 = qPA ; 1 = Pulso ; 2 = Respiração
-def calc_entropia(i_disc, entradas):
+# inicializando o discretador de grupos
+discretador = []
+discretador.append([N_GRUPOS_PA, PA_BAIXA, PA_MEDIA, PA_ALTA])
+discretador.append([N_GRUPOS_PL, PL_BAIXISSIMO, PL_BAIXO, PL_MEDIO, PL_ALTO, PL_ALTISSIMO])
+discretador.append([N_GRUPOS_RSP, RSP_BAIXA, RSP_OK, RSP_ALTA])
 
-	n_sub_grupos = discretador[i_disc][0] # discretador define os a quantidade e os limites de cada subgrupo
+def escolhe_atributo(flags_atrib, entradas):
 
-	labels = []
-	for i in range(n_sub_grupos):
-		labels.append([0, 0, 0, 0])
-
-	# pra cada entrada, atualiza o histograma daquela classificação na label de cada subgrupo
-	for e in entradas:
-		for i in range(n_sub_grupos):
-			if (e[i_disc + 1] > discretador[i_disc][i]):
-				labels[i][e[5] - 1] += 1
-
-	# soma a entropia de todos os subgrupos
-	entropia = 0
-	for i in range(n_sub_grupos):
-		for j in range(4):
-			prob = (labels[i][j] / len(labels[i])) #ERRADAO
-			entropia += prob * log((1/prob), 2)
-
-	return entropia
-
-def calc_mnr_entropia(flags_atrib, entradas):
-
+	# inicializando uma  lista com os tamanhos de cada subgrupo
 	n_sub_grupos = []
 	for i in range(3):
 		if flags_atrib[i] == 1:
-			n_sub_grupos.append(discretador[i][0]) # discretador define os a quantidade e os limites de cada subgrupo
+			n_sub_grupos.append(discretador[i][0])
 		else:
 			n_sub_grupos.append(0)
 
 	hist_labels = []
 	for i in range(3):
-
-		grupos = []
-
+		#cria um histograma pra cada subdivisão de cada grupo de cada atributo
+		hist = []
 		for j in range(n_sub_grupos[i]):
-			grupos.append([0,0,0,0])
+			hist.append([0, 0, 0, 0])
+			
+		hist_labels.append(hist)
+	
+	#somatorios de cada grupo pra talvez usar media e variancia para escolher
+	som_grav_grupos = []
+	for i in range(3):
+		#cria um somatorio pra cada subdivisão de cada grupo de cada atributo
+		som = []
+		for j in range(n_sub_grupos[i]):
+			som.append(0.0)
+			
+		som_grav_grupos.append(som)
 
-		hist_labels.append(grupos)
-
-	# pra cada entrada, atualiza o histograma daquela classificação na label de cada subgrupo
+	# pra cada entrada, atualiza o histograma e soma daquela classificação na label de cada subgrupo
 	for e in entradas:
 		for i in range(3): # for dos atributos
-			aumnt = 0
-			for j in range(0, n_sub_grupos[i]): # for dos subgrupos de cada atributo
-				if (e[i + 1] < discretador[i][j + 1]):
-					aumnt = j # flag de qual subgrupo incrementar
-				hist_labels[i][aumnt][e[5] - 1] += 1 #aumenta o subgrupo na label tal
+			if (flags_atrib[i] == 1):
+				sub_grupo = escolhe_sub_grupo(i, e[i + 1])
+
+				hist_labels[i][sub_grupo][e[ID_LAB] - 1] += 1
+				som_grav_grupos[i][sub_grupo] += e[ID_GRV] 
 
 	# soma a entropia de todos os subgrupos de todos os atributos
 	entropias = [0, 0, 0]
 	for i in range(3): # for dos atributos
-		for j in range(n_sub_grupos[i]):
-			total = 0
-			for k in range(4):
-				total += hist_labels[i][j][k] #total do subgrupo
-			for k in range(4):
-				if (hist_labels[i][j][k] > 0):
-					prob = (hist_labels[i][j][k] / total) #pob de cada label
-					entropias[i] += prob * log((1/prob), 2) #entropia daquele atributo
+		for j in range(n_sub_grupos[i]): #  for cada subgrupo
+			if (flags_atrib[i] == 1):
+				total = 0
+				for k in range(4):
+					total += hist_labels[i][j][k] #total do subgrupo
+				for k in range(4):
+					if (hist_labels[i][j][k] > 0):
+						prob = (hist_labels[i][j][k] / total) #pob de cada label
+						entropias[i] += prob * log((1/prob), 2) #entropia daquela label naquele subgrupo daquele atributo
 
+	# escolhe o menor pra retornar
 	min = 10000000000 #infinito
 	ret = -1
 	if min > entropias[0] and flags_atrib[0] == 1:
@@ -108,9 +119,9 @@ def calc_mnr_entropia(flags_atrib, entradas):
 
 	return ret
 
-def separa_por_atributo(i_disc, entradas):
+def separa_por_atributo(id_atrib, entradas):
 
-	n_sub_grupos = discretador[i_disc][0]
+	n_sub_grupos = discretador[id_atrib][0]
 
 	# cria uma lista para cada subgrupo
 	sub_grupos = []
@@ -119,57 +130,65 @@ def separa_por_atributo(i_disc, entradas):
 
 	# adiciona uma entrada em cada subgrupo respectivo
 	for e in entradas:
-		subg = 0
-		for j in range(0, n_sub_grupos): # for dos subgrupos de cada atributo
-			if (e[i_disc + 1] < discretador[i_disc][j + 1]): #i_disc + 1 para ignorar o id
-				subg = j # flag de qual subgrupo adicionar
+		subg = escolhe_sub_grupo(id_atrib, e[id_atrib + 1])
 		sub_grupos[subg].append(e) 
 
 	return sub_grupos
 
-def calc_prob_labels(entradas):
-	labels = [0,0,0,0]
+def calc_voto_arv(entradas):
+	labels = [0, 0, 0, 0]
 	total = len(entradas)
 	if total == 0:
-		return (0, 0, 0, 0)
+		return (0.0, 0.0, 0.0, 0.0) , (0.0)
 
+	som = 0.0
 	for e in entradas:
-		labels[e[5] - 1] += 1
+		labels[e[ID_LAB] - 1] += 1
+		som += e[ID_GRV]
 	
-	return (labels[0] / total, labels[1] / total, labels[2] / total, labels[3] / total)
+	# calcula a prob de cada label e a média das gravidades
+	return ((labels[0] / total), (labels[1] / total), (labels[2] / total), (labels[3] / total)) , (som / total)
+
+def escolhe_sub_grupo(id_atrb, valor):
+	n_grupos = discretador[id_atrb][0]
+	ret = 0
+	for i in range(0, n_grupos - 1):
+		if (valor >= discretador[id_atrb][i + 1]): # +1 pq 0 é len
+			ret = i + 1 # flag de qual filho seguir
+	return ret 
 
 class No:
 	def __init__(self, i_sub_atr):
 		self.i_sub_atr = i_sub_atr # discretador define os a quantidade e os limites de cada subgrupo
 		self.filhos = []
-		self.prob = []
+		self.prob = [] #probabilidade de cada label
+		self.grav = 0.0 #media das gravidades acumuladas
 
 	def add_filho(self, no):
 		self.filhos.append(no)
 
 class Arvore:
-	def __init__(self, n_atributos, entradas):
+	def __init__(self, entradas):
 
 		flags = [1, 1, 1] #todas inicialmente ativas
-
-		indx = calc_mnr_entropia(flags, entradas)
+		indx = escolhe_atributo(flags, entradas)
 
 		self.raiz = No(indx)
-
+		self.raiz.prob , self.raiz.grav = calc_voto_arv(entradas)
 		flags[indx] = 0 # abaixa a flag ja usada
 
 		sub_grupos = separa_por_atributo(indx, entradas)
 
 		for sg in sub_grupos:
-			indx = calc_mnr_entropia(flags, sg)
+			indx = escolhe_atributo(flags, sg)
 			ramo = No(indx)
-			flags[indx] = 0 # abaixa a flag ja usada
+			ramo.prob , ramo.grav = calc_voto_arv(entradas)
 
+			flags[indx] = 0 # abaixa a flag ja usada
 			ind_falta = 0 #pega o atributo que sobrou 
 			for i in range(3):
 				if flags[i] == 1:
 					ind_falta = i
-
 			flags[indx] = 1 #manter pro for
 
 			sub_sub_grupos = separa_por_atributo(indx, sg)
@@ -177,82 +196,128 @@ class Arvore:
 			# adiciona os filhos do ramo com probs calculadas
 			for ssg in sub_sub_grupos:
 				filho = No(ind_falta)
-				
+				filho.prob , filho.grav = calc_voto_arv(entradas)
+
 				folhas_grupos = separa_por_atributo(ind_falta, ssg)
 
 				for fg in folhas_grupos:
-					folha = No(-1) #indice de atributo invalido
-					folha.prob = calc_prob_labels(fg)
+
+					folha = No(ID_FOLHA) 
+					folha.prob, folha.grav = calc_voto_arv(fg)
+					#print(f"{folha.prob}, {folha.grav}")
 					filho.add_filho(folha)
 
 				ramo.add_filho(filho)
 
 			self.raiz.add_filho(ramo)
 
-		# escolhe uma hierarquia de atributos usando a entropia das entradas
-		# cria a arvore baseada nesta hierarquia
-
 	def processa(self, entrada):
-		# só descer raiz abaixo e ver se resulta em True ou False e retorna esse voto.
 		no_at = self.raiz
 		
-		for i in range(3): #toda arvore tem altura 3
+		prob_ret = no_at.prob
+		grav_ret = no_at.grav
+
+		# desce a arvore até chegar em uma folha
+		while no_at.i_sub_atr != ID_FOLHA:
 
 			atributo = no_at.i_sub_atr
-			valor = entrada[atributo + 1]
+			valor = entrada[atributo + 1] # +1 pra ignorar o id
 
-			n_filhos = discretador[atributo][0]
-			filho = 0
-			for j in range(0, n_filhos): # for dos filhos
-				if (valor < discretador[atributo][j + 1]):
-					filho = j # flag de qual filho seguir
+			# descobre pra qual filho descer
+			filho = escolhe_sub_grupo(atributo, valor)
+
 			no_at = no_at.filhos[filho] 
 
-		return no_at.prob #retorna a lista de probs / o voto deste classificador
+			if (no_at.grav != 0.0):
+				prob_ret = no_at.prob
+				grav_ret = no_at.grav
 
-		
+		return prob_ret, grav_ret#retorna a o voto deste classificador
 
 class Floresta:
-	def __init__(self):
+	def __init__(self, n_arvores, entradas):
+		n_ent = len(entradas)
+		n_ent_p_arv = n_ent // n_arvores 
 		self.arvores = []
-		# cria uma penca de arvores, (N_ARVORES)
-		file = open(ARQUIVO,'r',encoding='UTF-8')
-		for i in range(N_ARVORES):
-			entradas = ent.lerEntradas(file, (N_ENTR_P_ARV * i), N_ENTR_P_ARV)
-			self.arvores.append(Arvore(3, entradas))
-		file.close()
+		# inicializa n arvores dividindo igualmente as entradas
+		arv_ant = Arvore(entradas[0 : n_ent_p_arv])
+		self.arvores.append(arv_ant)
+
+		for i in range(1, n_arvores):
+			entr = entradas[(n_ent_p_arv * i) : (n_ent_p_arv * (i + 1))]
+
+			if (FLAG_BOOST_TODA_FLORESTA):
+				for a in self.arvores:
+					entr = self.adaboost(entr, a, 2)
+			if (FLAG_BOOST):
+				a = self.arvores[-1]
+				entr = self.adaboost(entr, a, 2)
+			
+			print(len(entr))
+
+			arv = Arvore(entr)
+			self.arvores.append(arv)
+			print(f"arvore {i} criada")
 	
 	def processa(self, entrada):
-		# manda cada arvore processar aquela entrada
-		# contabiliza os votos e retorna
-		resultado = [0.0, 0.0, 0.0, 0.0]
+		prob_res = [0.0, 0.0, 0.0, 0.0]
+		grav_res = 0.0
 
+		j = 0
 		for a in self.arvores:
 
-			prob = a.processa(entrada)
+			prob, grav_m = a.processa(entrada)
 			#print(f"aqui é a prob: {round(prob[0],2)},{round(prob[1],2)},{round(prob[2],2)},{round(prob[3],2)} da arvore")
 			for i in range(4):
-				resultado[i] += prob[i]
+				prob_res[i] += prob[i]
+			grav_res += grav_m
 
+			if (DEBUB_VOT):
+				print(f"arvore {j} vota em: gravidade {grav_m} e probs {prob}")
 
+			j+=1
+
+		n_arv = len(self.arvores)
 		for i in range(4):
-			resultado[i] /= N_ARVORES
+			prob_res[i] /= n_arv
+		grav_res /= n_arv
 
-		return resultado
+		return prob_res, grav_res
+
+	def adaboost(self, entradas, arv_ant, multiplicador):
+		entradas_boost = [] 
+		
+		for e in entradas:
+			prob, grav = arv_ant.processa(e)
+			entradas_boost.append(e)
+
+			if (prob[e[ID_LAB] - 1] > 0.3):
+				for i in range(multiplicador - 1):
+					entradas_boost.append(e)
+
+		return entradas_boost
 
 def main():
-	# cria uma floresta, manda processar entradas 
-	flor = Floresta()
 
 	file = open(ARQUIVO,'r',encoding='UTF-8')
-	linhas = ent.lerEntradas(file, N_ENTRADAS, 1500-N_ENTRADAS)
-	for l in linhas:
-		print(f"alvo: {l[5]} prob:{(flor.processa(l))[l[5]-1]}")
-
+	treino = ent.lerEntradas(file, 0, N_ENTRADAS_TREINO)
 	file.close()
 
-	return 0
+	print("-=- Treinando... -=-")
+	flor = Floresta(N_ARVORES, treino)
+	print("-=- Treino Finalizado -=-")
 
+	file = open(ARQUIVO,'r',encoding='UTF-8')
+	validacao = ent.lerEntradas(file, N_ENTRADAS_TREINO, (N_ENTRADAS - N_ENTRADAS_TREINO))
+	file.close()
+
+	for e in validacao:
+		prob, grav = flor.processa(e)
+		print(f"Entrada: gravidade {e[ID_GRV]}, label {e[ID_LAB]}")
+		print(f"Saida..: gravidade {grav}, probs {prob[e[ID_LAB] - 1]}")
+		input("")
+
+	return 0
 
 if __name__ == "__main__":
 	main()

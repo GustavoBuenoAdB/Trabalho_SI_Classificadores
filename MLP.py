@@ -4,8 +4,8 @@ import numpy
 from scipy.special import expit #exipit é a sigmoid
 
 N_ENTRADAS = 1499 # [1, 1500] = 1499
-N_ENTRADAS_TREINO = 1000
-N_EPOCAS = 10
+N_ENTRADAS_TREINO = 500
+N_EPOCAS = 1000
 
 TAM_MINI = 10 #queisso???
 TAXA_APRENDIZAGEM = 0.02
@@ -15,12 +15,12 @@ MAX_PESO = 0.9
 
 #numeros de entrada e saidas de cada camada
 N_ENT_C1 = 3
-N_NEU_C1 = 4
+N_NEU_C1 = 400
 
-N_ENT_C2 = 4
-N_NEU_C2 = 3
+N_ENT_C2 = 400
+N_NEU_C2 = 100
 
-N_ENT_C3 = 3
+N_ENT_C3 = 100
 N_NEU_C3 = 1
 
 #flags de "debug" = print
@@ -41,7 +41,7 @@ MAX_GRA = 100
 
 saidas_esperadas = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]] #alvos pra treino do back
 
-def f_ativacao(x):
+def f_ativacao(x): #TODO NORMAIZAR OS VALORES ANTES DE ENTRAR NA SIGMOID CABAAAAAAA (se não é OBVIO que vai dar pau)
 	return expit(x)
 
 def derivada_sigmoid(x):
