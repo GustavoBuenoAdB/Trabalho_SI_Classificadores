@@ -5,22 +5,22 @@ from scipy.special import expit #exipit é a sigmoid
 
 N_ENTRADAS = 1499 # [1, 1500] = 1499
 N_ENTRADAS_TREINO = 500
-N_EPOCAS = 1000
+N_EPOCAS = 10
 
 TAM_MINI = 10 #queisso???
-TAXA_APRENDIZAGEM = 0.02
+TAXA_APRENDIZAGEM = 1.5
 
 MIN_PESO = 0.1
 MAX_PESO = 0.9
 
 #numeros de entrada e saidas de cada camada
 N_ENT_C1 = 3
-N_NEU_C1 = 400
+N_NEU_C1 = 4
 
-N_ENT_C2 = 400
-N_NEU_C2 = 100
+N_ENT_C2 = 4
+N_NEU_C2 = 3
 
-N_ENT_C3 = 100
+N_ENT_C3 = 3
 N_NEU_C3 = 1
 
 #flags de "debug" = print
@@ -148,10 +148,17 @@ class Camada:
 			atualizacao.append((n.taxa_apr * n.ult_a * erro_propagado_vies)) # [0] do vetor de pesos
 
 			# atualização de cada peso do neuronio n
+			n.delta = derivada_sigmoid(n.ult_z) * sum(
+   			 									n_prox.pesos[idx+1] * n_prox.delta
+    											for idx, n_prox in enumerate(prox_camada.neuronios)
+												)
+			'''
 			n.delta = 0 #erro propagado por n para a proxima camada
 			for n_prox in prox_camada.neuronios:
 				n.delta += (n.ult_a) * (derivada_sigmoid(n_prox.ult_z)) * n_prox.delta 
-				
+			'''	
+			print(f"Esse é o delta atual: {n.delta}")
+			
 			for j in range(len(n.pesos) - 1): 
 				atualizacao.append(-1*(n.taxa_apr * (n.pesos[j + 1] * n.ult_a * n.delta)))
 
