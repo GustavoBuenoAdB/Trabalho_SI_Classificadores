@@ -54,6 +54,8 @@ RSP_BAIXA= 10 #entre [0 e 7[
 RSP_OK= 20 #entre [7 e 15[
 RSP_ALTA = 22 # entre [15 e 22[		
 
+FLAG_SEP_ENTR = False
+
 # inicializando o discretador de grupos
 discretador = []
 discretador.append([N_GRUPOS_PA, PA_BAIXA, PA_BOA, PA_ALTA])
@@ -114,15 +116,48 @@ def escolhe_atributo(flags_atrib, entradas):
 	# escolhe o menor pra retornar
 	min = 10000000000 #infinito
 	ret = -1
-	if min > entropias[0] and flags_atrib[0] == 1:
-		min = entropias[0]
-		ret = 0
-	if min > entropias[1] and flags_atrib[1] == 1:
-		min = entropias[1]
-		ret = 1
-	if min > entropias[2] and flags_atrib[2] == 1:
-		min = entropias[2]
-		ret = 2
+
+	if (FLAG_SEP_ENTR):
+		if min > entropias[0] and flags_atrib[0] == 1:
+			min = entropias[0]
+			ret = 0
+		if min > entropias[1] and flags_atrib[1] == 1:
+			min = entropias[1]
+			ret = 1
+		if min > entropias[2] and flags_atrib[2] == 1:
+			min = entropias[2]
+			ret = 2
+
+	else: # Separação por ganho de info
+
+		entropia_pai = 0
+		total = 0
+		hist_pai = [0, 0, 0, 0]
+		for e in entradas:
+			hist_pai[e[5] - 1] +=1
+			total += 1
+		for k in range(4):
+			if (hist_pai[k] > 0):
+				prob = (hist_pai[k] / total) #pob de cada label
+				entropia_pai += prob * log((1/prob), 2) #entropia daquela label naquele subgrupo daquele atributo
+
+		max = -100000 #menos infinito de info ganha
+
+		#print(entropia_pai)
+		#print(entropias)
+
+		if max < (entropias[0] - entropia_pai) and flags_atrib[0] == 1:
+			max = (entropias[0] - entropia_pai)
+			ret = 0
+		if max < (entropias[1] - entropia_pai) and flags_atrib[1] == 1:
+			max = (entropias[1] - entropia_pai)
+			ret = 1
+		if max < (entropias[2] - entropia_pai) and flags_atrib[2] == 1:
+			max = (entropias[2] - entropia_pai)
+			ret = 2
+
+		#print(max)
+		#input("")
 
 	return ret
 
@@ -416,11 +451,11 @@ def main():
 			z = som_recall
 			a = som_f1
 
-			#arquivo_saida = open("acu_pre_rec_f1_n_arv_sem_ada_1a15.csv", "a", encoding="utf-8")
-			#print(f"{x},{y},{z},{a}", file=arquivo_saida)
+			arquivo_saida = open("GANHOINF_acu_pre_rec_f1_n_arv_com_ada_mult_1a15.csv", "a", encoding="utf-8")
+			print(f"{x},{y},{z},{a}", file=arquivo_saida)
 
-			arquivo_saida_2 =  open("tempo_n_arv_com_ada_mult_1a15.csv", "a", encoding="utf-8")
-			print(f"{som_tempo}", file=arquivo_saida_2)
+			#arquivo_saida_2 =  open("tempo_n_arv_com_ada_mult_1a15.csv", "a", encoding="utf-8")
+			#print(f"{som_tempo}", file=arquivo_saida_2)
 
 	else:
 		file = open(ARQUIVO,'r',encoding='UTF-8')
