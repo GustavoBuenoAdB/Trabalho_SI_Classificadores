@@ -11,14 +11,21 @@ if args.arquivo:
     arquivo = args.arquivo
     df = pd.read_csv(arquivo) 
 
-colunas = df.columns[:3] #escolher quais colunas  
+colunas = df.columns[:4] #escolher quais colunas  #QUANTAS RETAS EU QUERO
 
 for coluna in colunas:
     plt.plot(df[coluna], label=coluna)
 
-plt.xlabel('Índice')
-plt.ylabel('Valor')
-plt.title('Gráfico X do randomforest')
+#passo do indice x #ESCOLHER O PASSO
+#passo = 1
+#plt.xticks(np.arange(0, len(df) + 3, passo))
+
+plt.xlabel('Numero de Arvores') #NOMEAR A SAIDA
+plt.ylabel('Tempo (ms)') #NOMEAR A SAIDA
+# Tempo x Número de Árvores (sem Adaboost)
+# Tempo x Número de Árvores 
+# T
+plt.title('Tempo x Número de Árvores (com Adaboost Unitario)')
 plt.legend()
 plt.grid(True)
 plt.show()

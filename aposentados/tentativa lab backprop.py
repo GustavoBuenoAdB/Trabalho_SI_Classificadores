@@ -5,7 +5,7 @@ import math
 
 N_ENTRADAS = 1499 # [1, 1500] = 1499
 N_ENTRADAS_TREINO = 1000
-N_EPOCAS = 2
+N_EPOCAS = 5
 
 TAM_MINI = 10 #queisso???
 TAXA_APRENDIZAGEM = 0.01
@@ -18,10 +18,13 @@ N_ENT_C1 = 3
 N_NEU_C1 = 4
 
 N_ENT_C2 = 4
-N_NEU_C2 = 2
+N_NEU_C2 = 1
 
-N_ENT_C3 = 2
-N_NEU_C3 = 1
+N_ENT_C3 = 1
+N_NEU_C3 = 4
+
+N_ENT_CS = 4
+N_NEU_CS = 4
 
 #flags de "debug" = print
 DEBUG_CAM = False
@@ -169,22 +172,22 @@ class Camada:
 			erro_vies = 0
 			for n_prox in prox_camada.neuronios:
 				erro_vies += 1 * derivada_sigmoid(n_prox.ult_z) * n_prox.delta
-			print(f"erro: {erro_vies} = {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
+			#print(f"erro: {erro_vies} = {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
 			atualiza.append(erro_vies * n.taxa_apr * -1)
 
 			for i in range(len(n.pesos) - 1):
 				erro_wi = 0
 				for n_prox in prox_camada.neuronios:
 					erro_wi += n.ult_ent[i] * derivada_sigmoid(n_prox.ult_z) * n_prox.delta
-				print(f"erro_wi: {erro_wi} = {n.ult_ent[i]} * {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
+				#print(f"erro_wi: {erro_wi} = {n.ult_ent[i]} * {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
 				atualiza.append(erro_wi * n.taxa_apr)
 			n.atualiza_pesos(atualiza)
 			i+=1
 
 
 	def calcula_deltas_saida(self, saida, saida_esperada):
-
-		self.neuronios[0].delta =  (2 *((saida_esperada[0]) - saida[0])) 
+		for i in range(len(self.neuronios) - 1):
+			self.neuronios[i].delta =  (2 *((saida_esperada[i]) - saida[i])) 
 
 
 class MLP:
@@ -203,8 +206,9 @@ class MLP:
 			saida = (self.camadas[i].processa(entrada)) # enquanto tiver camada a saida de um é a entrada dotro
 			entrada = saida
 
-		self.camadas[-1].neuronios[0].ult_a = saida[0]
-		self.camadas[-1].neuronios[0].ult_z = self.camadas[-2].neuronios[0].ult_z
+		for i in range(len(self.camadas[-1].neuronios) - 1):
+			self.camadas[-1].neuronios[i].ult_a = saida[0]
+			self.camadas[-1].neuronios[i].ult_z = self.camadas[-2].neuronios[0].ult_z
 
 		print(f" saida: {saida} \n ")
 		#input("")
@@ -226,7 +230,7 @@ class MLP:
 			print(f"entrada: [{e[1]}, {e[2]}, {e[3]}]")
 			print(f" saida esperada: {e[4]} | {e[5]}")
 			saida = self.processa((e[1],e[2],e[3]))
-			self.backpropagation(saida, [e[4]])
+			self.backpropagation(saida, s[e[5] - 1])
 
 def normaliza(entradas):
 	for e in entradas:
@@ -243,7 +247,7 @@ def main():
 	mlp.add_camada(Camada(N_ENT_C2, N_NEU_C2))
 	mlp.add_camada(Camada(N_ENT_C3, N_NEU_C3))
 	
-	cam_saida = Camada(N_NEU_C3, N_NEU_C3)
+	cam_saida = Camada(N_ENT_CS, N_NEU_CS)
 	for n in cam_saida.neuronios:
 		n.pesos[0] = 0.0
 		for i in range(1, len(n.pesos)):
