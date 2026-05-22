@@ -3,12 +3,12 @@ import random
 from scipy.special import expit #exipit é a sigmoid
 import math
 
-N_ENTRADAS = 1499 # [1, 1500] = 1499
-N_ENTRADAS_TREINO = 1000
-N_EPOCAS = 2
+N_ENTRADAS = 300 # [1, 1500] = 1499
+N_ENTRADAS_TREINO = 50
+N_EPOCAS = 3
 
 TAM_MINI = 10 #queisso???
-TAXA_APRENDIZAGEM = 0.01
+TAXA_APRENDIZAGEM = 0.05
 
 MIN_PESO = -0.9
 MAX_PESO = 0.9
@@ -18,9 +18,9 @@ N_ENT_C1 = 3
 N_NEU_C1 = 4
 
 N_ENT_C2 = 4
-N_NEU_C2 = 2
+N_NEU_C2 = 3
 
-N_ENT_C3 = 2
+N_ENT_C3 = 3
 N_NEU_C3 = 1
 
 #flags de "debug" = print
@@ -57,13 +57,9 @@ class Neuronio:
 		self.ult_ent = []
 		self.ult_z = 0 #essa é a ultima soma de pesos vezes entradas, antes da sigmoid
 		self.ult_a = 0
-		self.delta = 0 # derivada de Custo em relação a derivada de ativação da camada.
+		self.delta = 0 
 		self.taxa_apr = taxa_aprendizado
 
-		#self.ultima_ativacao = [] #essa é a ultima saida?
-		#self.ultima_som = [] #antes da sigmoid?
-		
-		# inicializa os pesos aleatoriamente
 		for i in range (n_entradas + 1):
 			self.pesos.append(random.uniform(MIN_PESO, MAX_PESO))
 
@@ -78,28 +74,12 @@ class Neuronio:
 			som += (entradas[i-1] * self.pesos[i])		
 		som -= self.pesos[0] # esse aqui é o vies (indice 0 do vetor de pesos)
 
-		som *= 5
-
-		#som *= 2.5 #constante magoca de normalização de sigmoide
-		#print(f"som: {som}")
-		
-		#n_neur = (len(self.pesos)) 
-		#som /= (n_neur * MAX_PESO))
-		#som = ((som * 10.00) -5) #normalizando as ativações da pré-sigmoid entre [-5; 5]
-
-		
-
 		#armazenando os valores do processamento
 		for i in range(self.n_entradas):
 			self.ult_ent[i] = entradas[i]
 		self.ult_z = som
 
 		ativacao = f_ativacao(som)
-		#print(ativacao)
-
-		#print(ativacao)
-		#TA ERERA DO ESSA NORMALIZACAO N TA CERT
-
 		
 		self.ult_a = ativacao
 
@@ -169,14 +149,14 @@ class Camada:
 			erro_vies = 0
 			for n_prox in prox_camada.neuronios:
 				erro_vies += 1 * derivada_sigmoid(n_prox.ult_z) * n_prox.delta
-			print(f"erro: {erro_vies} = {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
+			#print(f"erro: {erro_vies} = {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
 			atualiza.append(erro_vies * n.taxa_apr * -1)
 
 			for i in range(len(n.pesos) - 1):
 				erro_wi = 0
 				for n_prox in prox_camada.neuronios:
 					erro_wi += n.ult_ent[i] * derivada_sigmoid(n_prox.ult_z) * n_prox.delta
-				print(f"erro_wi: {erro_wi} = {n.ult_ent[i]} * {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
+				#print(f"erro_wi: {erro_wi} = {n.ult_ent[i]} * {derivada_sigmoid(n_prox.ult_z)} * {n_prox.delta}")
 				atualiza.append(erro_wi * n.taxa_apr)
 			n.atualiza_pesos(atualiza)
 			i+=1
@@ -188,6 +168,7 @@ class Camada:
 
 
 class MLP:
+
 	def __init__(self):
 		self.camadas = []
 
@@ -206,7 +187,7 @@ class MLP:
 		self.camadas[-1].neuronios[0].ult_a = saida[0]
 		self.camadas[-1].neuronios[0].ult_z = self.camadas[-2].neuronios[0].ult_z
 
-		print(f" saida: {saida} \n ")
+		#print(f" saida: {saida} \n ")
 		#input("")
 
 		return saida
@@ -228,6 +209,10 @@ class MLP:
 			saida = self.processa((e[1],e[2],e[3]))
 			self.backpropagation(saida, [e[4]])
 
+			if (e[5] != 2):
+				self.backpropagation(saida, [e[4]])
+
+
 def normaliza(entradas):
 	for e in entradas:
 		e[1] = ((((e[1] - MIN_QPA) / (MAX_QPA - MIN_QPA)) * 2) - 1.0)
@@ -237,43 +222,57 @@ def normaliza(entradas):
 	return entradas
 
 def main():
-	mlp = MLP()
-
-	mlp.add_camada(Camada(N_ENT_C1, N_NEU_C1))
-	mlp.add_camada(Camada(N_ENT_C2, N_NEU_C2))
-	mlp.add_camada(Camada(N_ENT_C3, N_NEU_C3))
 	
-	cam_saida = Camada(N_NEU_C3, N_NEU_C3)
-	for n in cam_saida.neuronios:
-		n.pesos[0] = 0.0
-		for i in range(1, len(n.pesos)):
-			n.pesos[i] = 1.0 
-	mlp.add_camada(cam_saida)
-	
-	f = open('data/02_treino_sinais_vitais_com_label.txt', 'r', encoding='UTF-8')
-	dados = ent.lerEntradas(f, 0, N_ENTRADAS_TREINO)
-	f.close()
+	for n_entrada_i in range(1, N_ENTRADAS):
+		
+		soma_erro_q = 0
 
-	dados = normaliza(dados)
+		mlp = MLP()
 
-	print("-=- Treinando... -=-")
-	for e in range(N_EPOCAS):
-		mlp.treina_epoca(dados)
-	print("-=- Treinado -=- \n")
+		mlp.add_camada(Camada(N_ENT_C1, N_NEU_C1))
+		mlp.add_camada(Camada(N_ENT_C2, N_NEU_C2))
+		mlp.add_camada(Camada(N_ENT_C3, N_NEU_C3))
+		
+		cam_saida = Camada(N_NEU_C3, N_NEU_C3)
+		for n in cam_saida.neuronios:
+			n.pesos[0] = 0.0
+			for i in range(1, len(n.pesos)):
+				n.pesos[i] = 1.0 
+		mlp.add_camada(cam_saida)
+		
+		f = open('data/02_treino_sinais_vitais_com_label.txt', 'r', encoding='UTF-8')
+		dados = ent.lerEntradas(f, 0, n_entrada_i)
+		f.close()
 
-	f = open('data/02_treino_sinais_vitais_com_label.txt', 'r', encoding='UTF-8')
-	dados_val = ent.lerEntradas(f, N_ENTRADAS_TREINO, (N_ENTRADAS - N_ENTRADAS_TREINO))
-	f.close()
+		dados = normaliza(dados)
 
-	dados_val = normaliza(dados_val)
+		print("-=- Treinando... -=-")
+		for e in range(N_EPOCAS):
+			mlp.treina_epoca(dados)
+		print("-=- Treinado -=- \n")
 
-	for e in dados_val:
-		saida = mlp.processa((e[1],e[2],e[3]))
+		f = open('data/02_treino_sinais_vitais_com_label.txt', 'r', encoding='UTF-8')
+		dados_val = ent.lerEntradas(f, n_entrada_i, N_ENTRADAS)
+		f.close()
 
-		print(f"entrada: [{e[1]}, {e[2]}, {e[3]}]")
-		print(f" saida esperada: {e[4]} | {e[5]}")
-		print(f" saida: {saida} \n ")
-		input("")
+		dados_val = normaliza(dados_val)
+
+		for e in dados_val:
+			saida = mlp.processa((e[1],e[2],e[3]))
+
+			#print(f"entrada: [{e[1]}, {e[2]}, {e[3]}]")
+			#print(f" saida esperada: {e[4]} | {e[5]}")
+			#print(f" saida: {saida} \n ")
+
+			soma_erro_q = ((saida[0]) - (e[4])) ** 2
+
+		soma_erro_q /= N_ENTRADAS
+
+		arquivo_saida = open("Saida_esperadaxSaidaTREINO_300VAL_DIFF.csv", "a", encoding="utf-8")
+		print(f"{soma_erro_q}", file=arquivo_saida)
+		arquivo_saida.close()
+
+			#input("")
 
 if __name__ == "__main__":
 	main()

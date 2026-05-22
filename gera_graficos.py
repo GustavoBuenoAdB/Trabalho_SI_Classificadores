@@ -20,12 +20,12 @@ for coluna in colunas:
 #passo = 1
 #plt.xticks(np.arange(0, len(df) + 3, passo))
 
-plt.xlabel('Numero de Arvores') #NOMEAR A SAIDA
-plt.ylabel('Métricas') #NOMEAR A SAIDA
+plt.xlabel('Numero da Entradas Treino') #NOMEAR A SAIDA
+plt.ylabel('Média Erro Quadratico') #NOMEAR A SAIDA
 # Tempo x Número de Árvores (sem Adaboost)
 # Tempo x Número de Árvores 
 # T
-plt.title('Métricas x Número de Árvores (com Ganho de Informação)')
+plt.title('Média erro quadratico Aumentando Treino (300)')
 plt.legend()
 plt.grid(True)
 plt.show()
